@@ -1,0 +1,246 @@
+@import "tailwindcss";
+
+:root {
+  --brand-navy: #0b2559;
+  --brand-blue: #2563eb;
+  --brand-orange: #f97316;
+  --brand-mint: #10b981;
+  --surface-bg: #f7faff;
+  --surface-card: #ffffff;
+  --text-primary: #0f172a;
+  --text-muted: #475569;
+}
+
+body {
+  background-color: var(--surface-bg);
+  color: var(--text-primary);
+  accent-color: #2563eb;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+@supports not (accent-color: #2563eb) {
+  input[type="radio"]:checked,
+  input[type="checkbox"]:checked {
+    outline: 2px solid #2563eb;
+    outline-offset: 1px;
+  }
+}
+
+/* Modern post-interaction form validation (:user-invalid / :user-valid with fallback) */
+.form-field input:is(:user-invalid, .user-invalid-fallback),
+.form-field select:is(:user-invalid, .user-invalid-fallback),
+.form-field textarea:is(:user-invalid, .user-invalid-fallback) {
+  border-color: #dc2626;
+  background-color: #fef2f2;
+}
+
+.form-field input:is(:user-valid, .user-valid-fallback),
+.form-field select:is(:user-valid, .user-valid-fallback) {
+  border-color: #10b981;
+}
+
+.form-field .field-error-msg {
+  display: none;
+}
+
+.form-field input:is(:user-invalid, .user-invalid-fallback) + .field-error-msg,
+.form-field select:is(:user-invalid, .user-invalid-fallback) + .field-error-msg,
+.form-field .input-wrap:has(input:is(:user-invalid, .user-invalid-fallback)) + .field-error-msg {
+  display: flex;
+}
+
+/* Accessible visually hidden helper for screen readers */
+.visually-hidden:where(:not(:focus-within, :active)) {
+  position: absolute !important;
+  clip-path: inset(50%) !important;
+  overflow: hidden !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+/* Current page semantic indicator (not color alone) */
+[aria-current="page"] {
+  font-weight: 700;
+}
+
+/* Accessible tab indicator via border on pseudo-element */
+.olh-tab {
+  position: relative;
+}
+
+.olh-tab[aria-selected="true"] {
+  color: #1d4ed8;
+}
+
+.olh-tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  border-block-end: 3px solid #2563eb;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Native CSS Scroll-Driven Reveal (compositor-only opacity + translate) */
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    @keyframes olh-scroll-reveal {
+      from {
+        opacity: 0;
+        translate: 0 26px;
+      }
+      to {
+        opacity: 1;
+        translate: 0 0;
+      }
+    }
+
+    .scroll-reveal {
+      animation: olh-scroll-reveal auto ease-out backwards;
+      animation-timeline: view();
+      animation-range: entry 0% entry 35%;
+    }
+  }
+}
+
+.scroll-reveal-fallback-hidden {
+  opacity: 0;
+  translate: 0 22px;
+}
+
+.scroll-reveal-fallback-visible {
+  opacity: 1;
+  translate: 0 0;
+  transition: opacity 550ms ease-out, translate 550ms ease-out;
+}
+
+.interactive-lift {
+  transition: translate 240ms ease, box-shadow 240ms ease, border-color 240ms ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .interactive-lift:hover {
+    translate: 0 -4px;
+  }
+}
+
+/* Smooth focus visibility */
+:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* Native Modal Dialog scroll containment & smooth entry */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background-color: rgb(15 23 42 / 0.42);
+  backdrop-filter: blur(4px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  dialog.olh-confirm-dialog {
+    opacity: 0;
+    translate: 0 10px;
+    scale: 0.97;
+    transition:
+      opacity 180ms ease-out,
+      translate 180ms ease-out,
+      scale 180ms ease-out,
+      display 180ms,
+      overlay 180ms;
+    transition-behavior: allow-discrete;
+  }
+
+  dialog.olh-confirm-dialog[open] {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+
+    @starting-style {
+      opacity: 0;
+      translate: 0 10px;
+      scale: 0.97;
+    }
+  }
+}
+
+/* Gentle compositor-only floating pills — opt in only when reduced motion is not preferred */
+@keyframes olh-float-y {
+  0%, 100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -7px;
+  }
+}
+
+.float-pill-slow {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: olh-float-y 4.5s ease-in-out infinite;
+  }
+}
+
+.float-pill-delayed {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: olh-float-y 5.2s ease-in-out 0.8s infinite;
+  }
+}
+
+.float-paused {
+  animation-play-state: paused !important;
+}
+
+/* Mobile popover menu fallback & positioning */
+.landing-mobile-menu[popover] {
+  position: fixed;
+  inset: auto;
+  inset-block-start: 4.5rem;
+  inset-inline-end: 1rem;
+  inline-size: min(86dvw, 20rem);
+  max-block-size: calc(100dvh - 6rem);
+  margin: 0;
+  padding: 1rem;
+  border-radius: 1.25rem;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 20px 35px -10px rgb(15 23 42 / 0.14);
+  overflow: auto;
+}
+
+@supports not selector(:popover-open) {
+  [popover]:not(.\:popover-open) {
+    display: none;
+  }
+}
+
+/* Print stylesheet khusus untuk cetak / simpan PDF Sertifikat */
+@media print {
+  @page {
+    size: landscape;
+    margin: 12mm;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+  }
+
+  .certificate-sheet {
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+}

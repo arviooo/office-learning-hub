@@ -1,0 +1,269 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("STUDENT") // STUDENT | TEACHER | ADMIN
+  identityNo   String?  // NISN untuk siswa, NIP untuk guru
+  className    String?  // Misal: XI MPLB 1
+  avatarColor  String   @default("#0f4c81")
+  bio          String?
+  points       Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  classroomId String?
+  classroom   Classroom? @relation("StudentClassroom", fields: [classroomId], references: [id])
+
+  taughtClasses      Classroom[]         @relation("TeacherClassroom")
+  materialProgress   MaterialProgress[]
+  simulationAttempts SimulationAttempt[]
+  quizAttempts       QuizAttempt[]
+  submissions        Submission[]
+  announcements      Announcement[]
+  discussionPosts    DiscussionPost[]
+  discussionReplies  DiscussionReply[]
+  badges             UserBadge[]
+}
+
+model Classroom {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  code         String   @unique
+  academicYear String   @default("2026/2027")
+  description  String?
+  createdAt    DateTime @default(now())
+
+  teacherId String?
+  teacher   User?   @relation("TeacherClassroom", fields: [teacherId], references: [id])
+  students  User[]  @relation("StudentClassroom")
+}
+
+model Material {
+  id              String   @id @default(cuid())
+  order           Int      @unique
+  slug            String   @unique
+  title           String
+  subtitle        String
+  summary         String
+  content         String   // Konten materi terstruktur (Markdown)
+  videoUrl        String?
+  pdfUrl          String?  // Lampiran PDF materi yang diunggah guru
+  pdfName         String?  // Nama file asli PDF materi
+  durationMinutes Int      @default(20)
+  objectivesJson  String   // JSON array string tujuan pembelajaran
+  keyPointsJson   String   // JSON array string poin penting
+  activityPrompt  String?
+  isPublished     Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  progress MaterialProgress[]
+  quizzes  Quiz[]
+}
+
+model MaterialProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  materialId  String
+  status      String    @default("NOT_STARTED") // NOT_STARTED | IN_PROGRESS | COMPLETED
+  notes       String?
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  material Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, materialId])
+}
+
+model Simulation {
+  id               String   @id @default(cuid())
+  order            Int      @unique
+  slug             String   @unique
+  title            String
+  subtitle         String
+  scenarioContext  String
+  customerName     String
+  customerRole     String
+  difficulty       String   @default("Dasar") // Dasar | Menengah | Lanjut
+  estimatedMinutes Int      @default(10)
+  stepsJson        String   // JSON array langkah simulasi & feedback
+  isPublished      Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  attempts SimulationAttempt[]
+}
+
+model SimulationAttempt {
+  id              String   @id @default(cuid())
+  userId          String
+  simulationId    String
+  score           Int
+  maxScore        Int
+  responsesJson   String
+  reflection      String?
+  teacherFeedback String?
+  completedAt     DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  simulation Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+}
+
+model Quiz {
+  id               String   @id @default(cuid())
+  materialId       String?
+  title            String
+  description      String
+  category         String   @default("EVALUASI") // KONSEP | ETIKA | STUDI_KASUS | EVALUASI
+  timeLimitMinutes Int      @default(15)
+  passingScore     Int      @default(75)
+  questionsJson    String   // JSON array soal & pembahasan
+  isPublished      Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  material Material?     @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  attempts QuizAttempt[]
+}
+
+model QuizAttempt {
+  id             String   @id @default(cuid())
+  userId         String
+  quizId         String
+  score          Int
+  correctCount   Int
+  totalQuestions Int
+  answersJson    String
+  completedAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+}
+
+model Assignment {
+  id            String    @id @default(cuid())
+  type          String    // LKPD | PROJECT
+  title         String
+  description   String
+  instructions  String
+  caseSummary   String?
+  questionsJson String?   // JSON array pertanyaan analisis untuk LKPD
+  pdfUrl        String?   // Lampiran PDF LKPD / panduan proyek dari guru
+  pdfName       String?   // Nama file asli PDF LKPD
+  dueDate       DateTime?
+  maxScore      Int       @default(100)
+  isPublished   Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+
+  submissions Submission[]
+}
+
+model Submission {
+  id              String    @id @default(cuid())
+  userId          String
+  assignmentId    String
+  answersJson     String?
+  fileName        String?
+  fileUrl         String?
+  videoLink       String?
+  notes           String?
+  status          String    @default("SUBMITTED") // DRAFT | SUBMITTED | GRADED
+  score           Int?
+  teacherFeedback String?
+  submittedAt     DateTime  @default(now())
+  gradedAt        DateTime?
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, assignmentId])
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  category  String   @default("INFO") // INFO | TUGAS | JADWAL
+  isPinned  Boolean  @default(false)
+  authorId  String
+  createdAt DateTime @default(now())
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model DiscussionPost {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  category  String   @default("MATERI") // MATERI | STUDI_KASUS | UMUM
+  authorId  String
+  createdAt DateTime @default(now())
+
+  author  User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  replies DiscussionReply[]
+}
+
+model DiscussionReply {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+
+  post   DiscussionPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model Badge {
+  id          String @id @default(cuid())
+  code        String @unique
+  name        String
+  description String
+  icon        String
+  criteria    String
+
+  users UserBadge[]
+}
+
+model UserBadge {
+  id       String   @id @default(cuid())
+  userId   String
+  badgeId  String
+  earnedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+}
+
+model ScheduleItem {
+  id            String  @id @default(cuid())
+  weekLabel     String  // Misal: Minggu 1
+  topic         String
+  activity      String
+  dateRange     String
+  materialOrder Int?
+  isCurrent     Boolean @default(false)
+}
+
+model UploadedFile {
+  id        String   @id @default(cuid())
+  folder    String
+  fileName  String
+  mimeType  String   @default("application/pdf")
+  size      Int
+  data      Bytes
+  createdAt DateTime @default(now())
+}

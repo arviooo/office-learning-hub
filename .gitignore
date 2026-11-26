@@ -1,0 +1,26 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# database & local uploads
+/prisma/*.db
+/prisma/*.db-journal
+/src/generated/prisma
+/public/uploads/
+
+# env
+.env
+.env*.local
+
+# debug
+npm-debug.log*
+*.tsbuildinfo
+next-env.d.ts
