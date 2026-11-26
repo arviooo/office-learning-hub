@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { prisma } from "./prisma";
 
@@ -74,12 +75,13 @@ export async function clearSessionCookie() {
   cookieStore.delete(SESSION_COOKIE_NAME);
 }
 
-export async function getSessionUser() {
+export const getSessionUser = cache(async () => {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   const payload = verifySessionToken(token);
   if (!payload) return null;
 
+  // Query ringan tanpa JOIN yang tidak dipakai agar setiap halaman cepat dimuat
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
     select: {
@@ -93,19 +95,11 @@ export async function getSessionUser() {
       bio: true,
       points: true,
       classroomId: true,
-      classroom: {
-        select: {
-          id: true,
-          name: true,
-          code: true,
-          academicYear: true,
-        },
-      },
     },
   });
 
   return user;
-}
+});
 
 export function getHomePathForRole(role: string): string {
   switch (role) {

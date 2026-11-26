@@ -35,6 +35,9 @@ model User {
   discussionPosts    DiscussionPost[]
   discussionReplies  DiscussionReply[]
   badges             UserBadge[]
+
+  @@index([role])
+  @@index([classroomId])
 }
 
 model Classroom {
@@ -86,6 +89,7 @@ model MaterialProgress {
   material Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
 
   @@unique([userId, materialId])
+  @@index([userId])
 }
 
 model Simulation {
@@ -119,6 +123,10 @@ model SimulationAttempt {
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   simulation Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([simulationId])
+  @@index([completedAt])
 }
 
 model Quiz {
@@ -149,6 +157,9 @@ model QuizAttempt {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([quizId])
 }
 
 model Assignment {
@@ -188,6 +199,9 @@ model Submission {
   assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, assignmentId])
+  @@index([userId])
+  @@index([assignmentId])
+  @@index([submittedAt])
 }
 
 model Announcement {
@@ -200,6 +214,8 @@ model Announcement {
   createdAt DateTime @default(now())
 
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([isPinned, createdAt])
 }
 
 model DiscussionPost {
@@ -212,6 +228,8 @@ model DiscussionPost {
 
   author  User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
   replies DiscussionReply[]
+
+  @@index([createdAt])
 }
 
 model DiscussionReply {
@@ -223,6 +241,8 @@ model DiscussionReply {
 
   post   DiscussionPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   author User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
 }
 
 model Badge {

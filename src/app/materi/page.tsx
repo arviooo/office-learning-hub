@@ -18,9 +18,23 @@ export default async function MaterialsPage() {
     prisma.material.findMany({
       where: { isPublished: true },
       orderBy: { order: "asc" },
+      select: {
+        id: true,
+        order: true,
+        slug: true,
+        title: true,
+        subtitle: true,
+        summary: true,
+        durationMinutes: true,
+        videoUrl: true,
+        pdfUrl: true,
+        pdfName: true,
+        keyPointsJson: true,
+      },
     }),
     prisma.materialProgress.findMany({
       where: { userId: user.id },
+      select: { materialId: true, status: true },
     }),
   ]);
 

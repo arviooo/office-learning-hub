@@ -7,8 +7,8 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     staleTimes: {
-      dynamic: 0,
-      static: 30,
+      dynamic: 15,
+      static: 60,
     },
   },
   outputFileTracingRoot: path.join(__dirname),
