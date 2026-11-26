@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/DashboardShell";
 import { parseQuizQuestions } from "@/lib/assessment";
 
+export const dynamic = "force-dynamic";
+
 export default async function QuizzesPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login?role=student");

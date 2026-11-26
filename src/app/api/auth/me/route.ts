@@ -81,8 +81,11 @@ export async function PATCH(request: Request) {
       },
     });
 
+    revalidatePath("/", "layout");
+    revalidatePath("/profil");
     revalidatePath("/sertifikat");
     revalidatePath("/guru");
+    revalidatePath("/admin");
     revalidatePath("/dashboard");
 
     return NextResponse.json({ user: updated, message: "Profil berhasil diperbarui." });

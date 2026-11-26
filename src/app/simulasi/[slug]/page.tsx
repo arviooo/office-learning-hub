@@ -7,6 +7,8 @@ import { DashboardShell } from "@/components/DashboardShell";
 import { SimulationPlayer } from "@/components/SimulationPlayer";
 import { computeMaxScore, parseSimulationSteps } from "@/lib/simulation";
 
+export const dynamic = "force-dynamic";
+
 function formatDateTime(date: Date) {
   return new Intl.DateTimeFormat("id-ID", {
     day: "numeric",

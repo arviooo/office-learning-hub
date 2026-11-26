@@ -21,6 +21,8 @@ import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/DashboardShell";
 import { formatIndoDate } from "@/lib/assessment";
 
+export const dynamic = "force-dynamic";
+
 function getBadgeIcon(icon: string) {
   switch (icon) {
     case "trophy":

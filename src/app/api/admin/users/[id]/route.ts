@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
@@ -75,9 +76,26 @@ export async function PATCH(
       data.passwordHash = await bcrypt.hash("smkmplb123", 10);
     }
 
-    await prisma.user.update({ where: { id }, data });
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        identityNo: true,
+        className: true,
+        classroomId: true,
+        points: true,
+      },
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/sertifikat");
 
     return NextResponse.json({
+      user: updatedUser,
       message: parsed.data.resetPassword
         ? "Kata sandi berhasil direset ke 'smkmplb123'."
         : "Data akun pengguna berhasil diperbarui.",
@@ -107,6 +125,7 @@ export async function DELETE(
     }
 
     await prisma.user.delete({ where: { id } });
+    revalidatePath("/admin");
     return NextResponse.json({ message: "Akun pengguna berhasil dihapus." });
   } catch (error) {
     console.error("Admin delete user error:", error);

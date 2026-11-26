@@ -19,6 +19,8 @@ import { getSessionUser, getStudentLevel } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/DashboardShell";
 
+export const dynamic = "force-dynamic";
+
 function formatDate(date: Date | null) {
   if (!date) return "Fleksibel";
   return new Intl.DateTimeFormat("id-ID", {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
@@ -60,6 +60,16 @@ function getRoleTag(role: string) {
 export function DiscussionHub({ userRole, announcements, posts }: DiscussionHubProps) {
   const router = useRouter();
   const canAnnounce = userRole === "TEACHER" || userRole === "ADMIN";
+  const [announcementsList, setAnnouncementsList] = useState<AnnouncementItem[]>(announcements);
+  const [postsList, setPostsList] = useState<DiscussionItem[]>(posts);
+
+  useEffect(() => {
+    setAnnouncementsList(announcements);
+  }, [announcements]);
+
+  useEffect(() => {
+    setPostsList(posts);
+  }, [posts]);
 
   const [categoryFilter, setCategoryFilter] = useState<"ALL" | "MATERI" | "STUDI_KASUS" | "UMUM">(
     "ALL"
@@ -90,7 +100,7 @@ export function DiscussionHub({ userRole, announcements, posts }: DiscussionHubP
   } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const filteredPosts = posts.filter(
+  const filteredPosts = postsList.filter(
     (p) => categoryFilter === "ALL" || p.category === categoryFilter
   );
 
@@ -110,6 +120,21 @@ export function DiscussionHub({ userRole, announcements, posts }: DiscussionHubP
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menerbitkan diskusi.");
+      if (data.post) {
+        setPostsList((prev) => [
+          {
+            id: data.post.id,
+            title: data.post.title,
+            content: data.post.content,
+            category: data.post.category,
+            authorName: data.post.author?.name || "Anda",
+            authorRole: data.post.author?.role || userRole,
+            createdAtLabel: "Baru saja",
+            replies: [],
+          },
+          ...prev,
+        ]);
+      }
       setPostTitle("");
       setPostContent("");
       setBanner({ type: "ok", text: data.message });
@@ -137,6 +162,25 @@ export function DiscussionHub({ userRole, announcements, posts }: DiscussionHubP
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal mengirim tanggapan.");
+      setPostsList((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                replies: [
+                  ...p.replies,
+                  {
+                    id: data.reply?.id || `temp-${Date.now()}`,
+                    content,
+                    authorName: data.reply?.author?.name || "Anda",
+                    authorRole: data.reply?.author?.role || userRole,
+                    createdAtLabel: "Baru saja",
+                  },
+                ],
+              }
+            : p
+        )
+      );
       setReplyDrafts((prev) => ({ ...prev, [postId]: "" }));
       setBanner({ type: "ok", text: data.message });
       router.refresh();
@@ -166,6 +210,28 @@ export function DiscussionHub({ userRole, announcements, posts }: DiscussionHubP
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menyimpan pengumuman.");
+      if (editingAnnId) {
+        setAnnouncementsList((prev) =>
+          prev.map((a) =>
+            a.id === editingAnnId
+              ? { ...a, title: annTitle, category: annCategory, content: annContent, isPinned: annPinned }
+              : a
+          )
+        );
+      } else if (data.announcement) {
+        setAnnouncementsList((prev) => [
+          {
+            id: data.announcement.id,
+            title: data.announcement.title,
+            content: data.announcement.content,
+            category: data.announcement.category,
+            isPinned: data.announcement.isPinned,
+            authorName: data.announcement.author?.name || "Guru",
+            createdAtLabel: "Baru saja",
+          },
+          ...prev,
+        ]);
+      }
       setEditingAnnId(null);
       setAnnTitle("");
       setAnnContent("");
@@ -187,6 +253,12 @@ export function DiscussionHub({ userRole, announcements, posts }: DiscussionHubP
       const res = await fetch(pendingDelete.endpoint, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menghapus.");
+      const deletedId = pendingDelete.endpoint.split("/").pop();
+      if (pendingDelete.endpoint.includes("/announcements/")) {
+        setAnnouncementsList((prev) => prev.filter((a) => a.id !== deletedId));
+      } else if (pendingDelete.endpoint.includes("/discussions/")) {
+        setPostsList((prev) => prev.filter((p) => p.id !== deletedId));
+      }
       setPendingDelete(null);
       setBanner({ type: "ok", text: data.message });
       router.refresh();
@@ -539,7 +611,7 @@ export function DiscussionHub({ userRole, announcements, posts }: DiscussionHubP
             </div>
 
             <div className="mt-4 space-y-3">
-              {announcements.map((a) => (
+              {announcementsList.map((a) => (
                 <article
                   key={a.id}
                   className={`rounded-xl border p-3.5 text-xs ${

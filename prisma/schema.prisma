@@ -267,3 +267,14 @@ model UploadedFile {
   data      Bytes
   createdAt DateTime @default(now())
 }
+
+model UploadedFileChunk {
+  id         String   @id @default(cuid())
+  uploadId   String
+  chunkIndex Int
+  data       Bytes
+  createdAt  DateTime @default(now())
+
+  @@unique([uploadId, chunkIndex])
+  @@index([uploadId])
+}

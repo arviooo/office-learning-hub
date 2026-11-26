@@ -6,6 +6,8 @@ import { DashboardShell } from "@/components/DashboardShell";
 import { formatIndoDate } from "@/lib/assessment";
 import { DiscussionHub } from "@/components/DiscussionHub";
 
+export const dynamic = "force-dynamic";
+
 export default async function DiscussionsPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");

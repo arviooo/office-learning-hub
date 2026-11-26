@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { uploadPdfClient } from "@/lib/uploadPdf";
 import {
   AlertCircle,
   CheckCircle2,
@@ -46,7 +47,11 @@ export function AssignmentSubmissionForm({
   const [notes, setNotes] = useState<string>(initialSubmission?.notes || "");
 
   const [uploading, setUploading] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [submissionStatus, setSubmissionStatus] = useState<string | null>(
+    initialSubmission?.status || null
+  );
   const [feedback, setFeedback] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -55,28 +60,25 @@ export function AssignmentSubmissionForm({
     if (!file) return;
 
     setUploading(true);
+    setUploadPercent(0);
     setFeedback(null);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("folder", type === "PROJECT" ? "projects" : "lkpd");
-
-      const res = await fetch("/api/uploads", {
-        method: "POST",
-        body: fd,
+      const data = await uploadPdfClient(
+        file,
+        type === "PROJECT" ? "projects" : "lkpd",
+        (pct) => setUploadPercent(pct)
+      );
+      setFileUrl(data.fileUrl);
+      setFileName(data.fileName);
+      setFeedback({ type: "ok", text: `Dokumen "${data.fileName}" berhasil diunggah.` });
+    } catch (err) {
+      setFeedback({
+        type: "err",
+        text: err instanceof Error ? err.message : "Gagal mengunggah file ke server.",
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setFeedback({ type: "err", text: data.error || "Gagal mengunggah PDF." });
-      } else {
-        setFileUrl(data.fileUrl);
-        setFileName(data.fileName);
-        setFeedback({ type: "ok", text: `Dokumen "${data.fileName}" berhasil diunggah.` });
-      }
-    } catch {
-      setFeedback({ type: "err", text: "Gagal mengunggah file ke server." });
     } finally {
       setUploading(false);
+      setUploadPercent(0);
     }
   }
 
@@ -101,6 +103,7 @@ export function AssignmentSubmissionForm({
       if (!res.ok) {
         setFeedback({ type: "err", text: data.error || "Gagal mengirim tugas." });
       } else {
+        setSubmissionStatus((prev) => (prev === "GRADED" ? "GRADED" : "SUBMITTED"));
         setFeedback({ type: "ok", text: data.message });
         router.refresh();
       }
@@ -143,16 +146,16 @@ export function AssignmentSubmissionForm({
           </h2>
           <span
             className={`rounded-full px-3 py-1 text-xs font-bold ${
-              initialSubmission?.status === "GRADED"
+              submissionStatus === "GRADED"
                 ? "bg-emerald-100 text-emerald-800"
-                : initialSubmission
+                : submissionStatus
                 ? "bg-blue-100 text-[#1d4ed8]"
                 : "bg-slate-100 text-slate-600"
             }`}
           >
-            {initialSubmission?.status === "GRADED"
+            {submissionStatus === "GRADED"
               ? "Sudah Dinilai"
-              : initialSubmission
+              : submissionStatus
               ? "Terkirim (Menunggu Penilaian)"
               : "Belum Dikumpulkan"}
           </span>
@@ -211,7 +214,7 @@ export function AssignmentSubmissionForm({
             Unggah Dokumen PDF {type === "LKPD" ? "(Opsional jika melampirkan berkas)" : "(SOP / Panduan / Laporan PDF)"}
           </label>
           <span id="pdf-upload-hint" className="mt-0.5 block text-xs text-slate-500">
-            Format khusus PDF (.pdf), ukuran maksimal 4 MB.
+            Format khusus PDF (.pdf), ukuran maksimal 15 MB.
           </span>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -224,7 +227,13 @@ export function AssignmentSubmissionForm({
               ) : (
                 <Upload className="h-4 w-4 text-[#1d4ed8]" aria-hidden="true" />
               )}
-              <span>{uploading ? "Mengunggah..." : fileUrl ? "Ganti File PDF" : "Pilih File PDF"}</span>
+              <span>
+                {uploading
+                  ? `Mengunggah... ${uploadPercent > 0 ? `${uploadPercent}%` : ""}`
+                  : fileUrl
+                    ? "Ganti File PDF"
+                    : "Pilih File PDF"}
+              </span>
             </label>
             <input
               id="pdf-upload"

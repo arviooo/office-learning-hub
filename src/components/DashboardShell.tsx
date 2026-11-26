@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Award,
   BookOpen,
@@ -14,8 +14,8 @@ import {
   Menu,
   MessageSquare,
   MonitorPlay,
+  School,
   Settings,
-  Shield,
   Sparkles,
   TrendingUp,
   Users,
@@ -59,12 +59,10 @@ function getNavItems(role: string): NavItem[] {
   }
   if (role === "ADMIN") {
     return [
-      { href: "/admin", label: "Dashboard Admin", icon: Shield, ready: true },
-      { href: "/guru", label: "Kelola Konten & Nilai", icon: Users, ready: true },
-      { href: "/materi", label: "Pratinjau Materi", icon: BookOpen, ready: true },
-      { href: "/simulasi", label: "Pratinjau Simulasi", icon: MonitorPlay, ready: true },
-      { href: "/diskusi", label: "Moderasi Diskusi", icon: MessageSquare, ready: true },
-      { href: "/profil", label: "Profil & Sandi", icon: Settings, ready: true },
+      { href: "/admin", label: "Dashboard", icon: LayoutDashboard, ready: true },
+      { href: "/admin?tab=users", label: "Kelola Akun", icon: Users, ready: true },
+      { href: "/admin?tab=classrooms", label: "Kelola Kelas", icon: School, ready: true },
+      { href: "/profil", label: "Profil & Kata Sandi", icon: Settings, ready: true },
     ];
   }
   return [
@@ -96,39 +94,36 @@ function getRoleLabel(role: string) {
   return "Siswa SMK MPLB";
 }
 
-export function DashboardShell({
-  user,
-  children,
+function SidebarNavList({
+  navItems,
+  onNavigate,
 }: {
-  user: ShellUser;
-  children: React.ReactNode;
+  navItems: NavItem[];
+  onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
+  const searchParams = useSearchParams();
+  const currentTab = searchParams.get("tab");
 
-  const navItems = getNavItems(user.role);
-
-  async function confirmLogout() {
-    setLoggingOut(true);
-    await fetch("/api/auth/logout", { method: "POST" });
-    setLogoutModalOpen(false);
-    router.push("/login");
-    router.refresh();
-  }
-
-  const renderNavLinks = (closeOnClick = false) => (
+  return (
     <ul className="space-y-1">
       {navItems.map((item) => {
         const Icon = item.icon;
-        const isActive =
-          pathname === item.href ||
-          (item.href !== "/dashboard" &&
-            item.href !== "/guru" &&
-            item.href !== "/admin" &&
-            pathname.startsWith(`${item.href}/`));
+        const [itemPath, itemQuery] = item.href.split("?");
+        const itemTab = itemQuery ? new URLSearchParams(itemQuery).get("tab") : null;
+
+        let isActive = false;
+        if (itemTab) {
+          isActive = pathname === itemPath && currentTab === itemTab;
+        } else if (itemPath === "/admin") {
+          isActive = pathname === "/admin" && !currentTab;
+        } else {
+          isActive =
+            pathname === itemPath ||
+            (itemPath !== "/dashboard" &&
+              itemPath !== "/guru" &&
+              pathname.startsWith(`${itemPath}/`));
+        }
 
         if (!item.ready) {
           return (
@@ -156,7 +151,7 @@ export function DashboardShell({
             <Link
               href={item.href}
               aria-current={isActive ? "page" : undefined}
-              onClick={() => closeOnClick && setMobileOpen(false)}
+              onClick={onNavigate}
               className={`flex items-center justify-between rounded-2xl px-3.5 py-2.5 text-sm transition-all duration-200 ${
                 isActive
                   ? "border-l-4 border-[#ff5f3d] bg-orange-50/80 font-bold text-slate-950 shadow-2xs"
@@ -172,6 +167,39 @@ export function DashboardShell({
         );
       })}
     </ul>
+  );
+}
+
+export function DashboardShell({
+  user,
+  children,
+}: {
+  user: ShellUser;
+  children: React.ReactNode;
+}) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const navItems = getNavItems(user.role);
+
+  async function confirmLogout() {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      setLogoutModalOpen(false);
+      window.location.assign("/login");
+    }
+  }
+
+  const renderNavLinks = (closeOnClick = false) => (
+    <Suspense fallback={<ul className="space-y-1" />}>
+      <SidebarNavList
+        navItems={navItems}
+        onNavigate={closeOnClick ? () => setMobileOpen(false) : undefined}
+      />
+    </Suspense>
   );
 
   return (

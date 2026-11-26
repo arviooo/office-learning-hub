@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
       },
     });
 
+    revalidatePath("/admin");
     return NextResponse.json(
       { classroom, message: `Kelas ${classroom.name} (${classroom.code}) berhasil dibuat.` },
       { status: 201 }

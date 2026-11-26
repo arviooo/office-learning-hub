@@ -7,6 +7,8 @@ import { DashboardShell } from "@/components/DashboardShell";
 import { QuizRunner } from "@/components/QuizRunner";
 import { parseQuizQuestions } from "@/lib/assessment";
 
+export const dynamic = "force-dynamic";
+
 export default async function QuizDetailPage({
   params,
 }: {

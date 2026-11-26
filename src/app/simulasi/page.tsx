@@ -16,6 +16,8 @@ import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/DashboardShell";
 import { computeMaxScore, parseSimulationSteps } from "@/lib/simulation";
 
+export const dynamic = "force-dynamic";
+
 function getDifficultyBadge(difficulty: string) {
   if (difficulty === "Lanjut") return "bg-rose-50 text-rose-700 ring-rose-200";
   if (difficulty === "Menengah") return "bg-amber-50 text-amber-800 ring-amber-200";

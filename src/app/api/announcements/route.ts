@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -34,7 +35,13 @@ export async function POST(request: Request) {
         isPinned: parsed.data.isPinned,
         authorId: user.id,
       },
+      include: {
+        author: { select: { name: true } },
+      },
     });
+
+    revalidatePath("/diskusi");
+    revalidatePath("/dashboard");
 
     return NextResponse.json(
       { announcement, message: "Pengumuman berhasil diterbitkan." },

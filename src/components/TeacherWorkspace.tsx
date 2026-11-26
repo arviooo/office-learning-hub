@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -26,6 +26,7 @@ import {
 import type { QuizQuestion } from "@/lib/assessment";
 import type { SimulationStep } from "@/lib/simulation";
 import { toEmbedVideoUrl } from "@/lib/video";
+import { uploadPdfClient } from "@/lib/uploadPdf";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 export interface TeacherStudentRow {
@@ -191,6 +192,11 @@ export function TeacherWorkspace({
   const validTab = TABS.find((t) => t.id === initialTab)?.id || "students";
 
   const [activeTab, setActiveTab] = useState<TabId>(validTab);
+  const [materialsList, setMaterialsList] = useState<TeacherMaterialItem[]>(materials);
+  const [simulationsList, setSimulationsList] = useState<TeacherSimulationItem[]>(simulations);
+  const [assignmentsList, setAssignmentsList] = useState<TeacherAssignmentItem[]>(assignments);
+  const [quizzesList, setQuizzesList] = useState<TeacherQuizItem[]>(quizzes);
+  const [submissionsList, setSubmissionsList] = useState<TeacherSubmissionItem[]>(submissions);
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{
     endpoint: string;
@@ -200,7 +206,24 @@ export function TeacherWorkspace({
     onAfter?: () => void;
   } | null>(null);
   const [uploadingTargetId, setUploadingTargetId] = useState<string | null>(null);
+  const [uploadPercent, setUploadPercent] = useState<number>(0);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMaterialsList(materials);
+  }, [materials]);
+  useEffect(() => {
+    setSimulationsList(simulations);
+  }, [simulations]);
+  useEffect(() => {
+    setAssignmentsList(assignments);
+  }, [assignments]);
+  useEffect(() => {
+    setQuizzesList(quizzes);
+  }, [quizzes]);
+  useEffect(() => {
+    setSubmissionsList(submissions);
+  }, [submissions]);
 
   // ===== MATERI STATE (CREATE / EDIT) =====
   const [editingMatId, setEditingMatId] = useState<string | null>(null);
@@ -281,13 +304,12 @@ export function TeacherWorkspace({
   }
 
   async function uploadPdfFile(file: File, folder: string) {
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("folder", folder);
-    const res = await fetch("/api/uploads", { method: "POST", body: fd });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Gagal mengunggah file PDF.");
-    return { fileUrl: data.fileUrl as string, fileName: data.fileName as string };
+    setUploadPercent(0);
+    try {
+      return await uploadPdfClient(file, folder, (pct) => setUploadPercent(pct));
+    } finally {
+      setUploadPercent(0);
+    }
   }
 
   // ---- MATERI HANDLERS ----
@@ -354,6 +376,27 @@ export function TeacherWorkspace({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menyimpan materi.");
+      if (data.material) {
+        const saved: TeacherMaterialItem = {
+          id: data.material.id,
+          order: data.material.order,
+          slug: data.material.slug,
+          title: data.material.title,
+          subtitle: data.material.subtitle,
+          summary: data.material.summary,
+          content: data.material.content,
+          videoUrl: data.material.videoUrl,
+          pdfUrl: data.material.pdfUrl,
+          pdfName: data.material.pdfName,
+          durationMinutes: data.material.durationMinutes,
+          activityPrompt: data.material.activityPrompt,
+        };
+        setMaterialsList((prev) =>
+          editingMatId
+            ? prev.map((item) => (item.id === editingMatId ? saved : item))
+            : [...prev, saved]
+        );
+      }
       resetMaterialForm();
       notify("ok", data.message);
       router.refresh();
@@ -377,6 +420,13 @@ export function TeacherWorkspace({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menautkan PDF.");
+      setMaterialsList((prev) =>
+        prev.map((item) =>
+          item.id === materialId
+            ? { ...item, pdfUrl: uploaded.fileUrl, pdfName: uploaded.fileName }
+            : item
+        )
+      );
       if (editingMatId === materialId) {
         setMatPdfUrl(uploaded.fileUrl);
         setMatPdfName(uploaded.fileName);
@@ -402,6 +452,15 @@ export function TeacherWorkspace({
       const res = await fetch(pendingDelete.endpoint, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menghapus data.");
+      if (pendingDelete.endpoint.includes("/materials/")) {
+        setMaterialsList((prev) => prev.filter((item) => item.id !== pendingDelete.id));
+      } else if (pendingDelete.endpoint.includes("/simulations/")) {
+        setSimulationsList((prev) => prev.filter((item) => item.id !== pendingDelete.id));
+      } else if (pendingDelete.endpoint.includes("/assignments/")) {
+        setAssignmentsList((prev) => prev.filter((item) => item.id !== pendingDelete.id));
+      } else if (pendingDelete.endpoint.includes("/quizzes/")) {
+        setQuizzesList((prev) => prev.filter((item) => item.id !== pendingDelete.id));
+      }
       pendingDelete.onAfter?.();
       setPendingDelete(null);
       notify("ok", data.message);
@@ -467,6 +526,28 @@ export function TeacherWorkspace({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menyimpan skenario simulasi.");
+      if (data.simulation) {
+        const saved: TeacherSimulationItem = {
+          id: data.simulation.id,
+          order: data.simulation.order,
+          slug: data.simulation.slug,
+          title: data.simulation.title,
+          subtitle: data.simulation.subtitle,
+          scenarioContext: data.simulation.scenarioContext,
+          customerName: data.simulation.customerName,
+          customerRole: data.simulation.customerRole,
+          difficulty: data.simulation.difficulty,
+          estimatedMinutes: data.simulation.estimatedMinutes,
+          steps: structuredClone(simSteps),
+          attemptsCount:
+            simulationsList.find((item) => item.id === editingSimId)?.attemptsCount ?? 0,
+        };
+        setSimulationsList((prev) =>
+          editingSimId
+            ? prev.map((item) => (item.id === editingSimId ? saved : item))
+            : [...prev, saved]
+        );
+      }
       resetSimulationForm();
       notify("ok", data.message);
       router.refresh();
@@ -542,6 +623,34 @@ export function TeacherWorkspace({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menyimpan tugas.");
+      if (data.assignment) {
+        const saved: TeacherAssignmentItem = {
+          id: data.assignment.id,
+          type: data.assignment.type,
+          title: data.assignment.title,
+          description: data.assignment.description,
+          instructions: data.assignment.instructions,
+          caseSummary: data.assignment.caseSummary,
+          questions,
+          pdfUrl: data.assignment.pdfUrl,
+          pdfName: data.assignment.pdfName,
+          dueDateIso: asgDueDate || null,
+          dueDateLabel: asgDueDate
+            ? new Intl.DateTimeFormat("id-ID", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              }).format(new Date(asgDueDate))
+            : "Fleksibel",
+          submissionsCount:
+            assignmentsList.find((item) => item.id === editingAsgId)?.submissionsCount ?? 0,
+        };
+        setAssignmentsList((prev) =>
+          editingAsgId
+            ? prev.map((item) => (item.id === editingAsgId ? saved : item))
+            : [...prev, saved]
+        );
+      }
       resetAssignmentForm();
       notify("ok", data.message);
       router.refresh();
@@ -565,6 +674,13 @@ export function TeacherWorkspace({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menautkan PDF.");
+      setAssignmentsList((prev) =>
+        prev.map((item) =>
+          item.id === assignmentId
+            ? { ...item, pdfUrl: uploaded.fileUrl, pdfName: uploaded.fileName }
+            : item
+        )
+      );
       if (editingAsgId === assignmentId) {
         setAsgPdfUrl(uploaded.fileUrl);
         setAsgPdfName(uploaded.fileName);
@@ -640,6 +756,24 @@ export function TeacherWorkspace({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menyimpan kuis.");
+      if (data.quiz) {
+        const saved: TeacherQuizItem = {
+          id: data.quiz.id,
+          title: data.quiz.title,
+          description: data.quiz.description,
+          category: data.quiz.category,
+          timeLimitMinutes: data.quiz.timeLimitMinutes,
+          passingScore: data.quiz.passingScore,
+          questions: cleanedQuestions,
+          attemptsCount:
+            quizzesList.find((item) => item.id === editingQuizId)?.attemptsCount ?? 0,
+        };
+        setQuizzesList((prev) =>
+          editingQuizId
+            ? prev.map((item) => (item.id === editingQuizId ? saved : item))
+            : [...prev, saved]
+        );
+      }
       resetQuizForm();
       notify("ok", data.message);
       router.refresh();
@@ -672,6 +806,13 @@ export function TeacherWorkspace({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menyimpan nilai.");
+      setSubmissionsList((prev) =>
+        prev.map((item) =>
+          item.id === submissionId
+            ? { ...item, status: "GRADED", score: numScore, teacherFeedback: draft?.feedback || "" }
+            : item
+        )
+      );
       notify("ok", data.message);
       router.refresh();
     } catch (err) {
@@ -721,7 +862,7 @@ export function TeacherWorkspace({
     btn?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
 
-  const pendingGrading = submissions.filter((s) => s.status !== "GRADED").length;
+  const pendingGrading = submissionsList.filter((s) => s.status !== "GRADED").length;
 
   return (
     <div className="space-y-6">
@@ -910,14 +1051,14 @@ export function TeacherWorkspace({
         <div className="space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
             <h2 className="text-lg font-extrabold text-[#0f294a]">
-              Daftar Materi &amp; Lampiran PDF ({materials.length})
+              Daftar Materi &amp; Lampiran PDF ({materialsList.length})
             </h2>
             <p className="mt-1 text-xs text-slate-500">
-              Unggah PDF langsung, edit isi materi, atau hapus materi yang tidak diperlukan.
+              Unggah PDF langsung (maks. 15 MB), edit isi materi, atau hapus materi yang tidak diperlukan.
             </p>
 
             <div className="mt-4 divide-y divide-slate-100">
-              {materials.map((m) => (
+              {materialsList.map((m) => (
                 <div
                   key={m.id}
                   className="flex flex-col justify-between gap-3 py-4 lg:flex-row lg:items-center"
@@ -959,7 +1100,13 @@ export function TeacherWorkspace({
                       ) : (
                         <Upload className="h-3.5 w-3.5" aria-hidden="true" />
                       )}
-                      <span>{m.pdfUrl ? "Ganti PDF" : "Upload PDF"}</span>
+                      <span>
+                        {uploadingTargetId === m.id
+                          ? `Mengunggah${uploadPercent > 0 ? ` ${uploadPercent}%` : "..."}`
+                          : m.pdfUrl
+                            ? "Ganti PDF"
+                            : "Upload PDF"}
+                      </span>
                     </label>
                     <input
                       id={`mat-pdf-${m.id}`}
@@ -1135,7 +1282,7 @@ export function TeacherWorkspace({
               </div>
               <div className="sm:col-span-2">
                 <span className="block text-xs font-bold text-slate-700">
-                  Lampiran File PDF Materi (Opsional — maks. 4 MB)
+                  Lampiran File PDF Materi (Opsional — maks. 15 MB)
                 </span>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
                   <label
@@ -1186,6 +1333,13 @@ export function TeacherWorkspace({
                           if (!patchRes.ok) {
                             throw new Error(patchData.error || "Gagal menautkan PDF ke materi.");
                           }
+                          setMaterialsList((prev) =>
+                            prev.map((item) =>
+                              item.id === editingMatId
+                                ? { ...item, pdfUrl: up.fileUrl, pdfName: up.fileName }
+                                : item
+                            )
+                          );
                           setMatPdfFeedback({
                             type: "ok",
                             text: `PDF "${up.fileName}" berhasil diunggah dan langsung tersimpan ke materi ini!`,
@@ -1231,6 +1385,13 @@ export function TeacherWorkspace({
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ pdfUrl: null, pdfName: null }),
                             });
+                            setMaterialsList((prev) =>
+                              prev.map((item) =>
+                                item.id === editingMatId
+                                  ? { ...item, pdfUrl: null, pdfName: null }
+                                  : item
+                              )
+                            );
                             setMatPdfFeedback({ type: "ok", text: "Lampiran PDF dilepas dari materi." });
                             router.refresh();
                           } else {
@@ -1290,10 +1451,10 @@ export function TeacherWorkspace({
         <div className="space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
             <h2 className="text-lg font-extrabold text-[#0f294a]">
-              Daftar Skenario Simulasi Digital ({simulations.length})
+              Daftar Skenario Simulasi Digital ({simulationsList.length})
             </h2>
             <div className="mt-4 divide-y divide-slate-100">
-              {simulations.map((s) => (
+              {simulationsList.map((s) => (
                 <div
                   key={s.id}
                   className="flex flex-col justify-between gap-3 py-4 sm:flex-row sm:items-center"
@@ -1638,14 +1799,14 @@ export function TeacherWorkspace({
         <div className="space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
             <h2 className="text-lg font-extrabold text-[#0f294a]">
-              Daftar LKPD &amp; Proyek Praktik ({assignments.length})
+              Daftar LKPD &amp; Proyek Praktik ({assignmentsList.length})
             </h2>
             <p className="mt-1 text-xs text-slate-500">
-              Unggah PDF LKPD/Panduan, edit petunjuk &amp; pertanyaan analisis, atau hapus tugas.
+              Unggah PDF LKPD/Panduan (maks. 15 MB), edit petunjuk &amp; pertanyaan analisis, atau hapus tugas.
             </p>
 
             <div className="mt-4 divide-y divide-slate-100">
-              {assignments.map((a) => (
+              {assignmentsList.map((a) => (
                 <div
                   key={a.id}
                   className="flex flex-col justify-between gap-3 py-4 lg:flex-row lg:items-center"
@@ -1860,7 +2021,7 @@ export function TeacherWorkspace({
               )}
               <div className="sm:col-span-2">
                 <span className="block text-xs font-bold text-slate-700">
-                  Upload File PDF LKPD / Panduan Proyek (Opsional — maks. 4 MB)
+                  Upload File PDF LKPD / Panduan Proyek (Opsional — maks. 15 MB)
                 </span>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
                   <label
@@ -1911,6 +2072,13 @@ export function TeacherWorkspace({
                           if (!patchRes.ok) {
                             throw new Error(patchData.error || "Gagal menautkan PDF ke tugas.");
                           }
+                          setAssignmentsList((prev) =>
+                            prev.map((item) =>
+                              item.id === editingAsgId
+                                ? { ...item, pdfUrl: up.fileUrl, pdfName: up.fileName }
+                                : item
+                            )
+                          );
                           setAsgPdfFeedback({
                             type: "ok",
                             text: `PDF "${up.fileName}" berhasil diunggah dan langsung tersimpan ke tugas ini!`,
@@ -2011,10 +2179,10 @@ export function TeacherWorkspace({
         <div className="space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
             <h2 className="text-lg font-extrabold text-[#0f294a]">
-              Daftar Kuis Interaktif ({quizzes.length})
+              Daftar Kuis Interaktif ({quizzesList.length})
             </h2>
             <div className="mt-4 divide-y divide-slate-100">
-              {quizzes.map((q) => (
+              {quizzesList.map((q) => (
                 <div
                   key={q.id}
                   className="flex flex-col justify-between gap-3 py-4 sm:flex-row sm:items-center"
@@ -2297,11 +2465,11 @@ export function TeacherWorkspace({
               Penilaian Pengumpulan LKPD &amp; Proyek Siswa
             </h2>
 
-            {submissions.length === 0 ? (
+            {submissionsList.length === 0 ? (
               <p className="mt-4 text-sm text-slate-500">Belum ada tugas yang dikumpulkan siswa.</p>
             ) : (
               <div className="mt-4 space-y-4">
-                {submissions.map((sub) => {
+                {submissionsList.map((sub) => {
                   const draft = gradeDrafts[sub.id] || { score: "", feedback: "" };
                   return (
                     <article

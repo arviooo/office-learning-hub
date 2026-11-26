@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -45,6 +46,7 @@ export async function PATCH(
       });
     }
 
+    revalidatePath("/admin");
     return NextResponse.json({ classroom: updated, message: "Data kelas berhasil diperbarui." });
   } catch (error) {
     console.error("Update classroom error:", error);
@@ -68,6 +70,7 @@ export async function DELETE(
       data: { classroomId: null, className: null },
     });
     await prisma.classroom.delete({ where: { id } });
+    revalidatePath("/admin");
     return NextResponse.json({ message: "Kelas berhasil dihapus." });
   } catch (error) {
     console.error("Delete classroom error:", error);

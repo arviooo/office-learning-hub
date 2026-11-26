@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react";
 
@@ -11,7 +10,6 @@ interface AuthFormProps {
 }
 
 export function AuthForm({ mode, initialRole = "student" }: AuthFormProps) {
-  const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
   const announcerRef = useRef<HTMLDivElement | null>(null);
 
@@ -124,15 +122,22 @@ export function AuthForm({ mode, initialRole = "student" }: AuthFormProps) {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      const rawText = await res.text();
+      let data: { error?: string; redirectTo?: string } = {};
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        data = { error: "Respons server tidak valid. Silakan coba lagi." };
+      }
+
       if (!res.ok) {
         setErrorMsg(data.error || "Terjadi kesalahan. Silakan coba lagi.");
         setSubmitting(false);
         return;
       }
 
-      router.push(data.redirectTo || "/dashboard");
-      router.refresh();
+      // Gunakan navigasi penuh langsung agar cookie sesi HttpOnly langsung aktif tanpa macet di router cache
+      window.location.assign(data.redirectTo || "/dashboard");
     } catch {
       setErrorMsg("Tidak dapat terhubung ke server. Periksa koneksi Anda.");
       setSubmitting(false);

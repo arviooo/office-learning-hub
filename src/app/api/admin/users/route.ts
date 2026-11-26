@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
@@ -63,9 +64,19 @@ export async function POST(request: Request) {
             ? "#0f766e"
             : "#0f4c81",
       },
-      select: { id: true, name: true, email: true, role: true, className: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        identityNo: true,
+        className: true,
+        classroomId: true,
+        points: true,
+      },
     });
 
+    revalidatePath("/admin");
     return NextResponse.json({ user, message: "Akun pengguna berhasil ditambahkan." }, { status: 201 });
   } catch (error) {
     console.error("Admin create user error:", error);

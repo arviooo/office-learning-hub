@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
@@ -40,6 +40,8 @@ export interface AdminClassroomItem {
 
 interface AdminWorkspaceProps {
   currentAdminId: string;
+  initialTab?: AdminTabId;
+  hideTabs?: boolean;
   users: AdminUserItem[];
   classrooms: AdminClassroomItem[];
 }
@@ -53,12 +55,28 @@ type AdminTabId = (typeof ADMIN_TABS)[number]["id"];
 
 export function AdminWorkspace({
   currentAdminId,
+  initialTab = "users",
+  hideTabs = false,
   users,
   classrooms,
 }: AdminWorkspaceProps) {
   const router = useRouter();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const [activeTab, setActiveTab] = useState<AdminTabId>("users");
+  const [activeTab, setActiveTab] = useState<AdminTabId>(initialTab);
+  const [usersList, setUsersList] = useState<AdminUserItem[]>(users);
+  const [classroomsList, setClassroomsList] = useState<AdminClassroomItem[]>(classrooms);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  useEffect(() => {
+    setUsersList(users);
+  }, [users]);
+
+  useEffect(() => {
+    setClassroomsList(classrooms);
+  }, [classrooms]);
   const [roleFilter, setRoleFilter] = useState<"ALL" | "STUDENT" | "TEACHER" | "ADMIN">("ALL");
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
@@ -77,7 +95,7 @@ export function AdminWorkspace({
   const [uPassword, setUPassword] = useState("smkmplb123");
   const [uRole, setURole] = useState<"STUDENT" | "TEACHER" | "ADMIN">("STUDENT");
   const [uIdentity, setUIdentity] = useState("");
-  const [uClassroomId, setUClassroomId] = useState(classrooms[0]?.id || "");
+  const [uClassroomId, setUClassroomId] = useState(classroomsList[0]?.id || "");
   const [savingUser, setSavingUser] = useState(false);
 
   // Form Tambah / Edit Kelas
@@ -88,7 +106,7 @@ export function AdminWorkspace({
   const [cDesc, setCDesc] = useState("");
   const [savingClass, setSavingClass] = useState(false);
 
-  const filteredUsers = users.filter((u) => roleFilter === "ALL" || u.role === roleFilter);
+  const filteredUsers = usersList.filter((u) => roleFilter === "ALL" || u.role === roleFilter);
 
   function startEditUser(u: AdminUserItem) {
     setEditingUserId(u.id);
@@ -143,6 +161,15 @@ export function AdminWorkspace({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menyimpan akun.");
+      if (data.user) {
+        if (editingUserId) {
+          setUsersList((prev) =>
+            prev.map((item) => (item.id === editingUserId ? { ...item, ...data.user } : item))
+          );
+        } else {
+          setUsersList((prev) => [data.user as AdminUserItem, ...prev]);
+        }
+      }
       resetUserForm();
       setBanner({ type: "ok", text: data.message });
       router.refresh();
@@ -164,6 +191,11 @@ export function AdminWorkspace({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal memperbarui akun.");
+      if (data.user) {
+        setUsersList((prev) =>
+          prev.map((item) => (item.id === userId ? { ...item, ...data.user } : item))
+        );
+      }
       setBanner({ type: "ok", text: data.message });
       router.refresh();
     } catch (err) {
@@ -180,6 +212,7 @@ export function AdminWorkspace({
       const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menghapus akun.");
+      setUsersList((prev) => prev.filter((item) => item.id !== userId));
       setConfirmAction(null);
       if (editingUserId === userId) resetUserForm();
       setBanner({ type: "ok", text: data.message });
@@ -230,6 +263,42 @@ export function AdminWorkspace({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menyimpan kelas.");
+      if (data.classroom) {
+        if (editingClassId) {
+          setClassroomsList((prev) =>
+            prev.map((item) =>
+              item.id === editingClassId
+                ? {
+                    ...item,
+                    name: data.classroom.name,
+                    code: data.classroom.code,
+                    academicYear: data.classroom.academicYear,
+                    description: data.classroom.description,
+                  }
+                : item
+            )
+          );
+          setUsersList((prev) =>
+            prev.map((u) =>
+              u.classroomId === editingClassId ? { ...u, className: data.classroom.name } : u
+            )
+          );
+        } else {
+          setClassroomsList((prev) =>
+            [
+              ...prev,
+              {
+                id: data.classroom.id,
+                name: data.classroom.name,
+                code: data.classroom.code,
+                academicYear: data.classroom.academicYear,
+                description: data.classroom.description,
+                studentCount: 0,
+              },
+            ].sort((a, b) => a.name.localeCompare(b.name))
+          );
+        }
+      }
       resetClassForm();
       setBanner({ type: "ok", text: data.message });
       router.refresh();
@@ -247,6 +316,10 @@ export function AdminWorkspace({
       const res = await fetch(`/api/admin/classrooms/${id}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menghapus kelas.");
+      setClassroomsList((prev) => prev.filter((item) => item.id !== id));
+      setUsersList((prev) =>
+        prev.map((u) => (u.classroomId === id ? { ...u, classroomId: null, className: null } : u))
+      );
       setConfirmAction(null);
       if (editingClassId === id) resetClassForm();
       setBanner({ type: "ok", text: data.message });
@@ -291,37 +364,39 @@ export function AdminWorkspace({
       )}
 
       {/* Accessible Single-Row Tablist */}
-      <div className="rounded-t-2xl border-b border-slate-200 bg-white px-2">
-        <div
-          role="tablist"
-          aria-label="Manajemen Administrator"
-          className="flex flex-nowrap gap-1 overflow-x-auto"
-        >
-          {ADMIN_TABS.map((t, idx) => {
-            const Icon = t.icon;
-            const selected = activeTab === t.id;
-            return (
-              <button
-                key={t.id}
-                ref={(el) => {
-                  tabRefs.current[idx] = el;
-                }}
-                id={`admin-tab-${t.id}`}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                tabIndex={selected ? 0 : -1}
-                onClick={() => setActiveTab(t.id)}
-                onKeyDown={(e) => handleTabKeyDown(e, idx)}
-                className="olh-tab flex flex-none items-center gap-2 whitespace-nowrap px-4 py-3.5 text-sm font-semibold text-slate-600 transition-colors hover:text-[#0f294a]"
-              >
-                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{t.label}</span>
-              </button>
-            );
-          })}
+      {!hideTabs && (
+        <div className="rounded-t-2xl border-b border-slate-200 bg-white px-2">
+          <div
+            role="tablist"
+            aria-label="Manajemen Administrator"
+            className="flex flex-nowrap gap-1 overflow-x-auto"
+          >
+            {ADMIN_TABS.map((t, idx) => {
+              const Icon = t.icon;
+              const selected = activeTab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  ref={(el) => {
+                    tabRefs.current[idx] = el;
+                  }}
+                  id={`admin-tab-${t.id}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => setActiveTab(t.id)}
+                  onKeyDown={(e) => handleTabKeyDown(e, idx)}
+                  className="olh-tab flex flex-none items-center gap-2 whitespace-nowrap px-4 py-3.5 text-sm font-semibold text-slate-600 transition-colors hover:text-[#0f294a]"
+                >
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* PANEL 1: KELOLA AKUN PENGGUNA (TAMBAH / EDIT / RESET / HAPUS) */}
       <div role="tabpanel" aria-labelledby="admin-tab-users" hidden={activeTab !== "users"}>
@@ -429,7 +504,7 @@ export function AdminWorkspace({
                     className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   >
                     <option value="">— Tanpa Kelas —</option>
-                    {classrooms.map((c) => (
+                    {classroomsList.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} ({c.code})
                       </option>
@@ -658,7 +733,7 @@ export function AdminWorkspace({
           </form>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {classrooms.map((c) => (
+            {classroomsList.map((c) => (
               <div
                 key={c.id}
                 className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs"

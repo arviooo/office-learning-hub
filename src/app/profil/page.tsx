@@ -3,6 +3,8 @@ import { getSessionUser } from "@/lib/auth";
 import { DashboardShell } from "@/components/DashboardShell";
 import { ProfileForm } from "@/components/ProfileForm";
 
+export const dynamic = "force-dynamic";
+
 export default async function ProfilePage() {
   const user = await getSessionUser();
   if (!user) {
