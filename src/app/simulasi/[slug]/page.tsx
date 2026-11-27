@@ -65,7 +65,7 @@ export default async function SimulationDetailPage({
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-[#0f294a]"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            <span>Kembali ke Daftar 5 Simulasi</span>
+            <span>Kembali ke Daftar Simulasi</span>
           </Link>
 
           <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">

@@ -419,7 +419,10 @@ export default async function StudentProgressPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 text-xs text-slate-700">
           <span className="flex items-center gap-2">
             <BookOpen className="h-4 w-4 text-[#1d4ed8]" aria-hidden="true" />
-            <span>Selesaikan 7 materi dan 5 simulasi untuk membuka sertifikat &amp; lencana Juara Pelayanan Prima!</span>
+            <span>
+              Selesaikan seluruh materi dan 6 simulasi untuk membuka sertifikat &amp; lencana Juara
+              Pelayanan Tamu!
+            </span>
           </span>
           <Link
             href="/sertifikat"

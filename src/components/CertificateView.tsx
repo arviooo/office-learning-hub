@@ -122,10 +122,11 @@ export function CertificateView({
           <p className="mt-3 text-sm font-semibold text-slate-600">Kelas {className}</p>
 
           <p className="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-slate-700">
-            Atas keberhasilannya menyelesaikan seluruh rangkaian pembelajaran, kuis evaluasi, dan{" "}
-            <strong>5 Skenario Simulasi Pelayanan Digital</strong> pada mata pelajaran{" "}
-            <strong>Pelayanan Prima di Lingkungan Perkantoran</strong> dengan rata-rata capaian{" "}
-            <strong className="text-[#0f766e]">{averageScore || 90}/100</strong>.
+            Atas keberhasilannya menyelesaikan seluruh rangkaian pembelajaran ({totalMaterials} Materi
+            Inti), kuis evaluasi, dan{" "}
+            <strong>{totalSimulations} Skenario Simulasi Pelayanan Digital</strong> pada mata
+            pelajaran <strong>Pelayanan Tamu (Langsung &amp; Telepon)</strong> dengan rata-rata
+            capaian <strong className="text-[#0f766e]">{averageScore || 90}/100</strong>.
           </p>
 
           <div className="mt-10 grid gap-8 border-t border-slate-200 pt-8 text-xs sm:grid-cols-2">
@@ -137,7 +138,7 @@ export function CertificateView({
               </p>
             </div>
             <div>
-              <p className="text-slate-500">Guru Pengampu Pelayanan Prima</p>
+              <p className="text-slate-500">Guru Pengampu Pelayanan Tamu</p>
               <p className="mt-10 text-sm font-extrabold text-[#0f294a] underline underline-offset-4">
                 {teacherName}
               </p>

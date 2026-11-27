@@ -68,7 +68,7 @@ export function MaterialListClient({ items }: { items: MaterialCardItem[] }) {
             aria-hidden="true"
           />
           <label htmlFor="search-material" className="visually-hidden">
-            Cari materi pelayanan prima
+            Cari materi pelayanan tamu
           </label>
           <input
             id="search-material"
@@ -76,7 +76,7 @@ export function MaterialListClient({ items }: { items: MaterialCardItem[] }) {
             enterKeyHint="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cari topik materi (misal: 6A, 5S, keluhan)..."
+            placeholder="Cari topik materi (misal: 3S, buku tamu, telepon, LPT)..."
             className="w-full rounded-xl border border-slate-300 bg-slate-50/70 py-2 pr-3.5 pl-10 text-sm text-slate-900 focus:border-[#1d4ed8] focus:bg-white focus:outline-none"
           />
         </div>

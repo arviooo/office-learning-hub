@@ -68,7 +68,7 @@ function getNavItems(role: string): NavItem[] {
   }
   return [
     { href: "/dashboard", label: "Dashboard Siswa", icon: LayoutDashboard, ready: true },
-    { href: "/materi", label: "7 Materi Pelayanan", icon: BookOpen, ready: true },
+    { href: "/materi", label: "2 Materi Pelayanan Tamu", icon: BookOpen, ready: true },
     { href: "/simulasi", label: "Simulasi Digital", icon: MonitorPlay, ready: true },
     { href: "/kuis", label: "Kuis Interaktif", icon: HelpCircle, ready: true },
     { href: "/lkpd", label: "LKPD", icon: ClipboardList, ready: true },
@@ -293,7 +293,7 @@ export function DashboardShell({
                 OFFICE LEARNING HUB
               </p>
               <p className="text-sm font-bold text-[#0f294a]">
-                Pelayanan Prima di Lingkungan Perkantoran
+                Pelayanan Tamu di Lingkungan Perkantoran
               </p>
             </div>
           </div>

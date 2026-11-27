@@ -92,11 +92,11 @@ export default async function CertificatePage() {
             <span>Apresiasi Penyelesaian Pembelajaran</span>
           </span>
           <h1 className="text-2xl font-extrabold text-[#0f294a] sm:text-3xl">
-            Sertifikat Pelayanan Prima
+            Sertifikat Pelayanan Tamu
           </h1>
           <p className="text-sm text-slate-600">
-            Cetak atau simpan sertifikat kompetensi sebagai PDF setelah menyelesaikan seluruh 7
-            materi dan 5 simulasi pelayanan digital.
+            Cetak atau simpan sertifikat kompetensi sebagai PDF setelah menyelesaikan seluruh{" "}
+            {totalMaterials} materi dan {totalSimulations} simulasi pelayanan tamu digital.
           </p>
         </header>
 

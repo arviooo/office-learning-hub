@@ -613,7 +613,7 @@ export function SimulationPlayer({
                 href="/simulasi"
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
-                <span>Daftar 5 Simulasi</span>
+                <span>Daftar Simulasi</span>
               </Link>
               {nextSimulation && (
                 <Link

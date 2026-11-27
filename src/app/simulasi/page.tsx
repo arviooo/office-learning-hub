@@ -80,12 +80,12 @@ export default async function SimulationsPage() {
                 <span>Fitur Utama • Roleplay Front Office Digital</span>
               </span>
               <h1 className="mt-3 text-2xl font-extrabold tracking-tight [text-wrap:balance] sm:text-3xl">
-                Simulasi Pelayanan Digital (5 Skenario Kantor)
+                Simulasi Pelayanan Tamu Digital ({simulations.length} Skenario)
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-blue-100">
-                Praktikkan sikap 5S, komunikasi efektif, prosedur penerimaan tamu, hingga penanganan
-                keluhan pelanggan secara langsung. Setiap pilihan tindakan memberikan skor
-                kompetensi dan umpan balik instan!
+                Praktikkan Materi 1 (tamu berjanji, tanpa janji, mengeluh) dan Materi 2 (pimpinan
+                rapat &amp; LPT, hold/transfer, menelepon keluar). Setiap pilihan memberikan skor
+                dan umpan balik instan!
               </p>
             </div>
 
@@ -103,7 +103,7 @@ export default async function SimulationsPage() {
                   aria-valuenow={percent}
                   aria-valuemin={0}
                   aria-valuemax={100}
-                  aria-label="Progres penyelesaian 5 simulasi pelayanan"
+                  aria-label="Progres penyelesaian simulasi pelayanan tamu"
                 >
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-teal-300 to-sky-300"
@@ -127,8 +127,8 @@ export default async function SimulationsPage() {
           </div>
         </section>
 
-        {/* Daftar 5 Skenario Simulasi */}
-        <section aria-label="Daftar 5 skenario simulasi" className="grid gap-5 lg:grid-cols-2">
+        {/* Daftar Skenario Simulasi */}
+        <section aria-label="Daftar skenario simulasi" className="grid gap-5 lg:grid-cols-2">
           {simulations.map((sim) => {
             const steps = parseSimulationSteps(sim.stepsJson);
             const maxScore = computeMaxScore(steps);
@@ -238,13 +238,13 @@ export default async function SimulationsPage() {
             <Award className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
             <div>
               <h2 className="text-sm font-extrabold text-amber-950">
-                Tips Meraih Predikat Pelayanan Prima (90%+)
+                Tips Meraih Predikat Sangat Profesional (90%+)
               </h2>
               <p className="mt-1 text-xs leading-relaxed text-amber-900">
-                Selalu prioritaskan budaya <strong>5S</strong> (Senyum, Salam, Sapa, Sopan,
-                Santun), konfirmasi kebutuhan dengan <strong>active listening</strong>, gunakan
-                kalimat positif &amp; solutif, serta terapkan metode <strong>L.A.S.T</strong> saat
-                menghadapi keluhan tamu.
+                Terapkan prinsip <strong>3S</strong> (Senyum, Salam, Sapa), lengkapi administrasi{" "}
+                <strong>Buku &amp; Kartu Tamu</strong>, ikuti <strong>13 langkah prosedur</strong>{" "}
+                telepon (angkat ≤ 3 dering, izin sebelum Hold/Transfer), dan bacakan ulang{" "}
+                <strong>LPT</strong> untuk konfirmasi.
               </p>
             </div>
           </div>

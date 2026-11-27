@@ -41,11 +41,12 @@ export default async function ProjectsListPage() {
             <span>Proyek Praktik Kerja • Berorientasi Produk &amp; Roleplay</span>
           </span>
           <h1 className="mt-3 text-2xl font-extrabold tracking-tight [text-wrap:balance] sm:text-3xl">
-            Proyek Praktik Pelayanan Prima
+            Proyek Praktik Pelayanan Tamu
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-amber-50">
-            Wujudkan keterampilan pelayanan prima dalam karya nyata: menyusun SOP pelayanan, membuat
-            video roleplay, serta merancang panduan menghadapi keluhan pelanggan.
+            Wujudkan keterampilan Materi 1 &amp; Materi 2 dalam karya nyata: menyusun bagian SOP
+            tamu langsung &amp; telepon, video adegan resepsionis/penerima telepon, serta panduan
+            menghadapi tamu mengeluh &amp; penelepon marah.
           </p>
         </section>
 

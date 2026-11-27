@@ -31,7 +31,7 @@ export function BrandLogo({ compact = false, light = false, size = "md" }: Brand
               light ? "text-blue-100" : "text-slate-500"
             }`}
           >
-            Pelayanan Prima • SMK MPLB
+            Pelayanan Tamu • SMK MPLB
           </span>
         </span>
       )}

@@ -66,7 +66,8 @@ export default async function MaterialDetailPage({
     });
   }
 
-  const [prevMaterial, nextMaterial] = await Promise.all([
+  const [totalMaterials, prevMaterial, nextMaterial] = await Promise.all([
+    prisma.material.count({ where: { isPublished: true } }),
     prisma.material.findFirst({
       where: { isPublished: true, order: { lt: material.order } },
       orderBy: { order: "desc" },
@@ -94,7 +95,7 @@ export default async function MaterialDetailPage({
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-[#0f294a]"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            <span>Kembali ke Daftar 7 Materi</span>
+            <span>Kembali ke Daftar Materi</span>
           </Link>
 
           <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
@@ -108,7 +109,7 @@ export default async function MaterialDetailPage({
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0f294a] px-3 py-1 text-xs font-bold text-white">
               <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Materi {material.order} dari 7</span>
+              <span>Materi {material.order} dari {totalMaterials}</span>
             </span>
             {progress?.status === "COMPLETED" && (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
@@ -340,7 +341,7 @@ export default async function MaterialDetailPage({
                   Bab Terakhir
                 </p>
                 <p className="text-sm font-bold text-emerald-900">
-                  Kembali ke Daftar 7 Materi
+                  Kembali ke Daftar Materi
                 </p>
               </div>
               <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />

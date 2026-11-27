@@ -113,9 +113,9 @@ export function getHomePathForRole(role: string): string {
 }
 
 export function getStudentLevel(points: number) {
-  if (points >= 800) return { level: 5, title: "Duta Pelayanan Prima", nextTarget: 1000 };
-  if (points >= 550) return { level: 4, title: "Petugas Layanan Profesional", nextTarget: 800 };
-  if (points >= 300) return { level: 3, title: "Praktisi 5S & Komunikasi", nextTarget: 550 };
+  if (points >= 800) return { level: 5, title: "Duta Pelayanan Tamu", nextTarget: 1000 };
+  if (points >= 550) return { level: 4, title: "Resepsionis Profesional", nextTarget: 800 };
+  if (points >= 300) return { level: 3, title: "Praktisi 3S & Telepon Kantor", nextTarget: 550 };
   if (points >= 120) return { level: 2, title: "Staf Front Office Muda", nextTarget: 300 };
-  return { level: 1, title: "Pembelajar Pelayanan Baru", nextTarget: 120 };
+  return { level: 1, title: "Pembelajar Pelayanan Tamu", nextTarget: 120 };
 }

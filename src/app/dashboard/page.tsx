@@ -148,7 +148,7 @@ export default async function StudentDashboardPage() {
               </h1>
               <p className="max-w-xl text-sm leading-relaxed text-slate-600">
                 Kamu sudah menyelesaikan <strong>{overallPercent}%</strong> dari seluruh rangkaian
-                Pelayanan Prima. Yuk lanjutkan satu langkah lagi biar makin jago!
+                Pelayanan Tamu. Yuk lanjutkan satu langkah lagi biar makin jago!
               </p>
 
               {/* 1 Langkah Selanjutnya yang Paling Jelas */}
@@ -373,12 +373,12 @@ export default async function StudentDashboardPage() {
               </div>
             </section>
 
-            {/* Peta 7 Materi Pelayanan Prima */}
+            {/* Peta Materi Pelayanan Tamu */}
             <section className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-2xs">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-base font-extrabold text-slate-950">
-                    Peta Belajar 7 Materi
+                    Peta Belajar Materi Pelayanan Tamu
                   </h2>
                   <p className="text-xs text-slate-500">
                     Pilih bab mana saja untuk langsung membaca &amp; mencatat rangkuman

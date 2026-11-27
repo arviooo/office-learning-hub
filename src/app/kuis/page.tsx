@@ -43,11 +43,11 @@ export default async function QuizzesPage() {
             <span>Evaluasi Pemahaman • Skor &amp; Pembahasan Otomatis</span>
           </span>
           <h1 className="mt-3 text-2xl font-extrabold tracking-tight [text-wrap:balance] sm:text-3xl">
-            Kuis Interaktif Pelayanan Prima
+            Kuis Interaktif Pelayanan Tamu
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-blue-100">
-            Uji pemahaman konsep 6A, etika 5S, komunikasi efektif, dan studi kasus perkantoran.
-            Raih nilai 100 untuk membuka lencana <strong>Bintang Kuis</strong>!
+            Uji pemahaman Materi 1 (Penanganan Tamu Secara Langsung) dan Materi 2 (Penanganan Tamu
+            Melalui Telepon). Raih nilai 100 untuk membuka lencana <strong>Bintang Kuis</strong>!
           </p>
         </section>
 

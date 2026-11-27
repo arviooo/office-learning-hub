@@ -82,15 +82,15 @@ export default async function MaterialsPage() {
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-teal-200">
                 <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Kurikulum Pelayanan Prima • SMK MPLB</span>
+                <span>Kurikulum Pelayanan Tamu • SMK MPLB</span>
               </span>
               <h1 className="mt-3 text-2xl font-extrabold tracking-tight [text-wrap:balance] sm:text-3xl">
-                7 Pokok Materi Pelayanan Prima di Perkantoran
+                Materi Pembelajaran Pelayanan Tamu
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-blue-100">
-                Pelajari setiap bab secara berurutan mulai dari konsep dasar, prinsip 6A, etika &amp;
-                budaya 5S, komunikasi efektif, prosedur pelayanan tamu, penanganan keluhan, hingga
-                evaluasi kualitas layanan.
+                Pelajari 2 materi inti secara runtut: Penanganan Tamu Secara Langsung (prinsip 3S,
+                12 macam tamu, buku &amp; kartu tamu) dan Penanganan Tamu Melalui Telepon (PABX,
+                etiket, 13 langkah prosedur, LPT, &amp; menelepon keluar).
               </p>
             </div>
 
@@ -106,7 +106,7 @@ export default async function MaterialsPage() {
                   aria-valuenow={percent}
                   aria-valuemin={0}
                   aria-valuemax={100}
-                  aria-label="Progres penyelesaian 7 materi"
+                  aria-label="Progres penyelesaian materi pelayanan tamu"
                 >
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-teal-300 to-sky-300"

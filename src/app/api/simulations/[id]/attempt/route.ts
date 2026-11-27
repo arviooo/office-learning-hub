@@ -126,7 +126,7 @@ export async function POST(
         }
       }
 
-      // Cek badge EXCELLENCE_CHAMPION (7 materi & 5 simulasi selesai)
+      // Cek badge EXCELLENCE_CHAMPION (seluruh materi & simulasi selesai)
       const [totalMat, completedMat, totalSim, distinctSimAttempts] = await Promise.all([
         prisma.material.count({ where: { isPublished: true } }),
         prisma.materialProgress.count({ where: { userId: user.id, status: "COMPLETED" } }),

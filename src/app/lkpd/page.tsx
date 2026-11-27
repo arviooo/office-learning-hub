@@ -40,11 +40,12 @@ export default async function LkpdListPage() {
             <span>Lembar Kerja Peserta Didik • Studi Kasus Perkantoran</span>
           </span>
           <h1 className="mt-3 text-2xl font-extrabold tracking-tight [text-wrap:balance] sm:text-3xl">
-            LKPD Analisis Pelayanan Prima
+            LKPD Studi Kasus Pelayanan Tamu
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-blue-100">
-            Analisis situasi pelayanan nyata di lingkungan perkantoran, unduh lembar kerja PDF dari
-            guru jika tersedia, dan kirimkan jawaban atau dokumen PDF hasil kerjamu untuk dinilai.
+            Kerjakan LKPD 1 (kasus tiga tamu datang bersamaan + Buku/Kartu Tamu) dan LKPD 2 (kasus
+            tiga panggilan telepon + Lembar Pesan Telepon / LPT), lalu kirimkan jawaban atau PDF
+            hasil kerjamu untuk dinilai guru.
           </p>
         </section>
 

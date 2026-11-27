@@ -41,8 +41,8 @@ export default async function DiscussionsPage() {
             Forum Diskusi &amp; Pengumuman Kelas
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm text-blue-100">
-            Ajukan pertanyaan seputar materi pelayanan prima, diskusikan studi kasus kantor bersama
-            teman dan guru, serta pantau pengumuman jadwal terbaru.
+            Ajukan pertanyaan seputar materi pelayanan tamu (langsung &amp; telepon), diskusikan
+            studi kasus kantor bersama teman dan guru, serta pantau pengumuman jadwal terbaru.
           </p>
         </section>
 

@@ -10,9 +10,9 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "OFFICE LEARNING HUB — Belajar Seru Pelayanan Prima SMK MPLB",
+  title: "OFFICE LEARNING HUB — Belajar Seru Pelayanan Tamu SMK MPLB",
   description:
-    "Platform Learning Management System (LMS) yang santai, interaktif, dan ramah siswa SMK MPLB untuk belajar Pelayanan Prima di Lingkungan Perkantoran.",
+    "Platform Learning Management System (LMS) yang santai, interaktif, dan ramah siswa SMK MPLB untuk belajar Pelayanan Tamu di Lingkungan Perkantoran (Langsung & Telepon).",
   icons: {
     icon: "/logo.png",
   },

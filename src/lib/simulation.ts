@@ -33,10 +33,10 @@ export function computeMaxScore(steps: SimulationStep[]): number {
 export function getCompetencyPredicate(percent: number) {
   if (percent >= 90) {
     return {
-      label: "Sangat Profesional (Pelayanan Prima)",
+      label: "Sangat Profesional (Pelayanan Tamu Unggul)",
       tone: "emerald" as const,
       summary:
-        "Responmu mencerminkan sikap 5S, komunikasi empatik, dan ketepatan prosedur perkantoran yang luar biasa.",
+        "Responmu mencerminkan prinsip 3S, etiket resepsionis & telepon kantor, serta ketepatan prosedur pelayanan tamu yang luar biasa.",
     };
   }
   if (percent >= 75) {
@@ -44,7 +44,7 @@ export function getCompetencyPredicate(percent: number) {
       label: "Kompeten & Siap Praktik",
       tone: "blue" as const,
       summary:
-        "Sebagian besar tindakanmu sudah sesuai standar pelayanan prima. Perhatikan detail kecil pada umpan balik agar semakin mantap.",
+        "Sebagian besar tindakanmu sudah sesuai standar pelayanan tamu. Perhatikan detail kecil pada umpan balik agar semakin mantap.",
     };
   }
   return {

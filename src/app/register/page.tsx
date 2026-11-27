@@ -42,7 +42,7 @@ export default async function RegisterPage() {
               Buat Akun Baru
             </h1>
             <p className="mt-1.5 text-sm text-slate-500">
-              Gabung ke kelas Pelayanan Prima SMK MPLB secara gratis.
+              Gabung ke kelas Pelayanan Tamu SMK MPLB secara gratis.
             </p>
           </div>
 

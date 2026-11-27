@@ -17,8 +17,8 @@ import { ScrollRevealFallback } from "@/components/ScrollRevealFallback";
 const featureCards = [
   {
     code: "01 • MATERI & PDF",
-    title: "7 Materi Ringkas & Terstruktur",
-    desc: "Belajar konsep 6A, budaya 5S, komunikasi efektif, hingga penanganan keluhan lengkap dengan video dan handout PDF dari guru.",
+    title: "2 Materi Inti Pelayanan Tamu",
+    desc: "Kuasai Penanganan Tamu Secara Langsung (3S, 12 macam tamu, buku & kartu tamu) dan Melalui Telepon (PABX, 13 langkah prosedur, LPT) lengkap dengan video & PDF.",
     icon: BookOpen,
     cardClass:
       "border-sky-200/80 bg-gradient-to-br from-sky-50/80 via-white to-white hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100/70",
@@ -27,8 +27,8 @@ const featureCards = [
   },
   {
     code: "02 • SIMULASI & KUIS",
-    title: "Simulasi Tamu & Kuis Seru",
-    desc: "Latih respon menghadapi tamu kantor lewat 5 skenario roleplay dengan umpan balik instan, ditambah kuis otomatis & LKPD kasus.",
+    title: "6 Simulasi Roleplay & Kuis",
+    desc: "Praktikkan 6 skenario nyata (tamu berjanji, tanpa janji, mengeluh, LPT, hold/transfer, menelepon keluar) ditambah 2 kuis & 2 LKPD studi kasus.",
     icon: MonitorPlay,
     cardClass:
       "border-orange-200/80 bg-gradient-to-br from-orange-50/80 via-white to-white hover:border-orange-300 hover:shadow-lg hover:shadow-orange-100/70",
@@ -36,9 +36,9 @@ const featureCards = [
     iconWrapClass: "bg-white text-[#ff5f3d] ring-1 ring-orange-100",
   },
   {
-    code: "03 • PROGRES & SERTIFIKAT",
-    title: "Poin XP, Lencana & E-Sertifikat",
-    desc: "Pantau kemajuan belajarmu secara real-time, kumpulkan poin XP dan badge, lalu cetak E-Sertifikat saat seluruh materi tuntas.",
+    code: "03 • PROYEK & SERTIFIKAT",
+    title: "6 Proyek Praktik & E-Sertifikat",
+    desc: "Susun SOP, buat video adegan resepsionis & telepon, rancang panduan penanganan keluhan, lalu cetak E-Sertifikat kompetensi otomatis.",
     icon: Award,
     cardClass:
       "border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 via-white to-white hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100/70",
@@ -48,21 +48,17 @@ const featureCards = [
 ];
 
 const topicList = [
-  "Konsep & Manfaat Pelayanan Prima",
-  "Prinsip 6A & Standar Layanan Kantor",
-  "Sikap, Etika, Grooming & Budaya 5S",
-  "Teknik Komunikasi Pelayanan Efektif",
-  "Prosedur Melayani Tamu Kantor",
-  "Penanganan Keluhan (Metode L.A.S.T)",
-  "Evaluasi Kualitas Layanan & Refleksi",
+  "Materi 1: Penanganan Tamu Secara Langsung — Resepsionis, Prinsip 3S, 12 Macam Tamu, Tata Cara Penerimaan, Buku & Kartu Tamu, Hambatan, & Dialog",
+  "Materi 2: Penanganan Tamu Melalui Telepon — Telepon Kantor (PABX), Etiket, 13 Langkah Prosedur, Kalimat Dianjurkan/Dihindari, Situasi Khusus, LPT, Menelepon Keluar, & Dialog",
 ];
 
 const simulationList = [
-  "Menyambut Tamu yang Datang ke Kantor",
-  "Mengidentifikasi Kebutuhan Kunjungan",
-  "Memberi Informasi & Mengarahkan Tamu",
-  "Menangani Tamu yang Menyampaikan Keluhan",
-  "Mengakhiri Pelayanan dengan Profesional",
+  "S1: Tamu dengan Janji (Materi 1)",
+  "S2: Tamu Tanpa Janji & Pimpinan Tidak di Tempat (Materi 1)",
+  "S3: Tamu Mengeluh (Materi 1)",
+  "S4: Pimpinan Rapat & Mencatat LPT (Materi 2)",
+  "S5: Hold atau Transfer Telepon (Materi 2)",
+  "S6: Menelepon Keluar (Materi 2)",
 ];
 
 export default async function LandingPage() {
@@ -85,12 +81,13 @@ export default async function LandingPage() {
           <div className="mx-auto mt-3 max-w-2xl text-center">
             <h1 className="text-4xl font-extrabold tracking-tight text-slate-950 [text-wrap:balance] sm:text-6xl sm:leading-[1.08]">
               Platform Belajar
-              <span className="block">Pelayanan Prima</span>
+              <span className="block">Pelayanan Tamu</span>
             </h1>
 
             <p className="mx-auto mt-5 max-w-md text-sm leading-relaxed text-slate-500 [text-wrap:pretty] sm:text-base">
               Office Learning Hub adalah LMS modern dan santai untuk siswa SMK MPLB — belajar
-              materi, simulasi tamu kantor, kuis, dan raih E-Sertifikat dalam satu tempat.
+              penanganan tamu langsung &amp; melalui telepon, simulasi, LKPD, proyek, hingga
+              E-Sertifikat dalam satu tempat.
             </p>
 
             <div className="mt-8 flex flex-col items-center justify-center gap-3">
@@ -178,9 +175,9 @@ export default async function LandingPage() {
                   </span>
                   <div>
                     <h2 className="text-lg font-extrabold text-slate-950">
-                      7 Pokok Materi Pelayanan Prima
+                      2 Pokok Materi Pelayanan Tamu
                     </h2>
-                    <p className="text-xs text-slate-500">Ringkas, jelas, dilengkapi video &amp; PDF</p>
+                    <p className="text-xs text-slate-500">Lengkap dengan video, handout PDF, LKPD &amp; Proyek</p>
                   </div>
                 </div>
                 <ol className="mt-5 space-y-2">
@@ -209,7 +206,7 @@ export default async function LandingPage() {
                     </span>
                     <div>
                       <h2 className="text-lg font-extrabold text-slate-950">
-                        5 Simulasi Pelayanan Digital
+                        6 Simulasi Pelayanan Tamu Digital
                       </h2>
                       <p className="text-xs text-slate-500">
                         Roleplay kantor nyata dengan umpan balik langsung
@@ -250,8 +247,8 @@ export default async function LandingPage() {
               Yuk, Mulai Belajar Hari Ini!
             </h2>
             <p className="mx-auto mt-2.5 max-w-md text-sm text-slate-600">
-              Masuk dengan akun kelasmu, selesaikan 7 materi &amp; 5 simulasi, dan dapatkan
-              E-Sertifikat Pelayanan Prima.
+              Masuk dengan akun kelasmu, selesaikan 2 materi &amp; 6 simulasi, dan dapatkan
+              E-Sertifikat Pelayanan Tamu.
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <Link
@@ -278,7 +275,7 @@ export default async function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-8">
           <BrandLogo size="sm" />
           <p className="text-xs text-slate-400">
-            © {new Date().getFullYear()} OFFICE LEARNING HUB — LMS Pelayanan Prima SMK MPLB.
+            © {new Date().getFullYear()} OFFICE LEARNING HUB — LMS Pelayanan Tamu SMK MPLB.
           </p>
         </div>
       </footer>
