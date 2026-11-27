@@ -88,9 +88,9 @@ export default async function MaterialsPage() {
                 Materi Pembelajaran Pelayanan Tamu
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-blue-100">
-                Pelajari 2 materi inti secara runtut: Penanganan Tamu Secara Langsung (prinsip 3S,
-                12 macam tamu, buku &amp; kartu tamu) dan Penanganan Tamu Melalui Telepon (PABX,
-                etiket, 13 langkah prosedur, LPT, &amp; menelepon keluar).
+                Pelajari seluruh materi secara runtut mulai dari Penanganan Tamu Secara Langsung
+                (prinsip 3S, macam tamu, buku &amp; kartu tamu) hingga Penanganan Tamu Melalui
+                Telepon (PABX, etiket, prosedur, LPT, &amp; menelepon keluar).
               </p>
             </div>
 

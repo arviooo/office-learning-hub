@@ -9,16 +9,19 @@ import {
   Sparkles,
 } from "lucide-react";
 import { getHomePathForRole, getSessionUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { LandingNavbar } from "@/components/LandingNavbar";
 import { BrandLogo } from "@/components/BrandLogo";
 import { LandingHubHero } from "@/components/LandingHubHero";
 import { ScrollRevealFallback } from "@/components/ScrollRevealFallback";
 
+export const dynamic = "force-dynamic";
+
 const featureCards = [
   {
     code: "01 • MATERI & PDF",
-    title: "2 Materi Inti Pelayanan Tamu",
-    desc: "Kuasai Penanganan Tamu Secara Langsung (3S, 12 macam tamu, buku & kartu tamu) dan Melalui Telepon (PABX, 13 langkah prosedur, LPT) lengkap dengan video & PDF.",
+    title: "Materi Inti Pelayanan Tamu",
+    desc: "Kuasai Penanganan Tamu Secara Langsung (prinsip 3S, resepsionis, buku & kartu tamu) hingga Melalui Telepon (PABX, prosedur, LPT) lengkap dengan video & PDF.",
     icon: BookOpen,
     cardClass:
       "border-sky-200/80 bg-gradient-to-br from-sky-50/80 via-white to-white hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100/70",
@@ -27,8 +30,8 @@ const featureCards = [
   },
   {
     code: "02 • SIMULASI & KUIS",
-    title: "6 Simulasi Roleplay & Kuis",
-    desc: "Praktikkan 6 skenario nyata (tamu berjanji, tanpa janji, mengeluh, LPT, hold/transfer, menelepon keluar) ditambah 2 kuis & 2 LKPD studi kasus.",
+    title: "Simulasi Roleplay & Kuis",
+    desc: "Praktikkan berbagai skenario nyata menghadapi tamu langsung & penelepon kantor dengan umpan balik instan, ditambah kuis otomatis & LKPD studi kasus.",
     icon: MonitorPlay,
     cardClass:
       "border-orange-200/80 bg-gradient-to-br from-orange-50/80 via-white to-white hover:border-orange-300 hover:shadow-lg hover:shadow-orange-100/70",
@@ -37,8 +40,8 @@ const featureCards = [
   },
   {
     code: "03 • PROYEK & SERTIFIKAT",
-    title: "6 Proyek Praktik & E-Sertifikat",
-    desc: "Susun SOP, buat video adegan resepsionis & telepon, rancang panduan penanganan keluhan, lalu cetak E-Sertifikat kompetensi otomatis.",
+    title: "Proyek Praktik & E-Sertifikat",
+    desc: "Susun SOP, buat video adegan pelayanan, rancang panduan penanganan keluhan, lalu cetak E-Sertifikat kompetensi otomatis saat pembelajaran tuntas.",
     icon: Award,
     cardClass:
       "border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 via-white to-white hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100/70",
@@ -47,23 +50,46 @@ const featureCards = [
   },
 ];
 
-const topicList = [
-  "Materi 1: Penanganan Tamu Secara Langsung — Resepsionis, Prinsip 3S, 12 Macam Tamu, Tata Cara Penerimaan, Buku & Kartu Tamu, Hambatan, & Dialog",
-  "Materi 2: Penanganan Tamu Melalui Telepon — Telepon Kantor (PABX), Etiket, 13 Langkah Prosedur, Kalimat Dianjurkan/Dihindari, Situasi Khusus, LPT, Menelepon Keluar, & Dialog",
+const fallbackTopics = [
+  "Penanganan Tamu Secara Langsung — Resepsionis, Prinsip 3S, Macam Tamu, Tata Cara Penerimaan, Buku & Kartu Tamu, Hambatan, & Dialog",
+  "Penanganan Tamu Melalui Telepon — Telepon Kantor (PABX), Etiket, Prosedur, Kalimat Dianjurkan/Dihindari, Situasi Khusus, LPT, Menelepon Keluar, & Dialog",
 ];
 
-const simulationList = [
-  "S1: Tamu dengan Janji (Materi 1)",
-  "S2: Tamu Tanpa Janji & Pimpinan Tidak di Tempat (Materi 1)",
-  "S3: Tamu Mengeluh (Materi 1)",
-  "S4: Pimpinan Rapat & Mencatat LPT (Materi 2)",
-  "S5: Hold atau Transfer Telepon (Materi 2)",
-  "S6: Menelepon Keluar (Materi 2)",
+const fallbackSimulations = [
+  "Tamu dengan Janji",
+  "Tamu Tanpa Janji & Pimpinan Tidak di Tempat",
+  "Tamu Mengeluh",
+  "Pimpinan Rapat & Mencatat LPT",
+  "Hold atau Transfer Telepon",
+  "Menelepon Keluar",
 ];
 
 export default async function LandingPage() {
-  const sessionUser = await getSessionUser();
+  const [sessionUser, dbMaterials, dbSimulations] = await Promise.all([
+    getSessionUser(),
+    prisma.material
+      .findMany({
+        where: { isPublished: true },
+        orderBy: { order: "asc" },
+        select: { title: true, subtitle: true },
+      })
+      .catch(() => []),
+    prisma.simulation
+      .findMany({
+        where: { isPublished: true },
+        orderBy: { order: "asc" },
+        select: { title: true },
+      })
+      .catch(() => []),
+  ]);
+
   const loggedInHome = sessionUser ? getHomePathForRole(sessionUser.role) : null;
+  const topicList =
+    dbMaterials.length > 0
+      ? dbMaterials.map((m) => (m.subtitle ? `${m.title} — ${m.subtitle}` : m.title))
+      : fallbackTopics;
+  const simulationList =
+    dbSimulations.length > 0 ? dbSimulations.map((s) => s.title) : fallbackSimulations;
 
   return (
     <div className="min-h-dvh bg-white text-slate-900">
@@ -175,7 +201,7 @@ export default async function LandingPage() {
                   </span>
                   <div>
                     <h2 className="text-lg font-extrabold text-slate-950">
-                      2 Pokok Materi Pelayanan Tamu
+                      Pokok Materi Pelayanan Tamu
                     </h2>
                     <p className="text-xs text-slate-500">Lengkap dengan video, handout PDF, LKPD &amp; Proyek</p>
                   </div>
@@ -206,7 +232,7 @@ export default async function LandingPage() {
                     </span>
                     <div>
                       <h2 className="text-lg font-extrabold text-slate-950">
-                        6 Simulasi Pelayanan Tamu Digital
+                        Simulasi Pelayanan Tamu Digital
                       </h2>
                       <p className="text-xs text-slate-500">
                         Roleplay kantor nyata dengan umpan balik langsung
@@ -247,7 +273,7 @@ export default async function LandingPage() {
               Yuk, Mulai Belajar Hari Ini!
             </h2>
             <p className="mx-auto mt-2.5 max-w-md text-sm text-slate-600">
-              Masuk dengan akun kelasmu, selesaikan 2 materi &amp; 6 simulasi, dan dapatkan
+              Masuk dengan akun kelasmu, selesaikan seluruh materi &amp; simulasi, dan dapatkan
               E-Sertifikat Pelayanan Tamu.
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">

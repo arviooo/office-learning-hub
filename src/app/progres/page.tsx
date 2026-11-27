@@ -420,7 +420,7 @@ export default async function StudentProgressPage() {
           <span className="flex items-center gap-2">
             <BookOpen className="h-4 w-4 text-[#1d4ed8]" aria-hidden="true" />
             <span>
-              Selesaikan seluruh materi dan 6 simulasi untuk membuka sertifikat &amp; lencana Juara
+              Selesaikan seluruh materi dan simulasi untuk membuka sertifikat &amp; lencana Juara
               Pelayanan Tamu!
             </span>
           </span>
