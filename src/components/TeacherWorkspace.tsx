@@ -12,14 +12,17 @@ import {
   ClipboardCheck,
   ClipboardList,
   ExternalLink,
+  FileSpreadsheet,
   FileText,
   HelpCircle,
+  Image as ImageIcon,
   Loader2,
   MessageSquareText,
   MonitorPlay,
   Pencil,
   Plus,
   Save,
+  Shuffle,
   Trash2,
   Upload,
   Users,
@@ -34,7 +37,7 @@ import {
 } from "@/lib/assessment";
 import type { SimulationStep } from "@/lib/simulation";
 import { toEmbedVideoUrl } from "@/lib/video";
-import { uploadPdfClient } from "@/lib/uploadPdf";
+import { uploadImageClient, uploadPdfClient } from "@/lib/uploadPdf";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 export interface TeacherStudentRow {
@@ -73,10 +76,15 @@ export interface TeacherSimulationItem {
   title: string;
   subtitle: string;
   scenarioContext: string;
+  instructions: string | null;
   customerName: string;
   customerRole: string;
   difficulty: string;
   estimatedMinutes: number;
+  imageUrl: string | null;
+  imageName: string | null;
+  pdfUrl: string | null;
+  pdfName: string | null;
   steps: SimulationStep[];
   attemptsCount: number;
 }
@@ -104,6 +112,7 @@ export interface TeacherQuizItem {
   category: string;
   timeLimitMinutes: number;
   passingScore: number;
+  shuffleQuestions: boolean;
   questions: QuizQuestion[];
   attemptsCount: number;
 }
@@ -131,8 +140,11 @@ export interface TeacherSimAttemptItem {
   studentName: string;
   studentClass: string | null;
   simulationTitle: string;
+  status: string;
   score: number;
   maxScore: number;
+  fileUrl: string | null;
+  fileName: string | null;
   reflection: string | null;
   teacherFeedback: string | null;
   completedAtLabel: string;
@@ -159,19 +171,6 @@ const TABS = [
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
-
-function makeEmptySimStep(index: number): SimulationStep {
-  return {
-    id: `step-${Date.now()}-${index}`,
-    situation: "",
-    customerDialog: "",
-    prompt: "Bagaimana respons pelayanan terbaik Anda?",
-    options: [
-      { id: "a", text: "", score: 50, rating: "Sangat Tepat", feedback: "" },
-      { id: "b", text: "", score: 15, rating: "Kurang Tepat", feedback: "" },
-    ],
-  };
-}
 
 function makeEmptyQuizQuestion(index: number): QuizQuestion {
   return {
@@ -213,6 +212,7 @@ export function TeacherWorkspace({
   const router = useRouter();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const matFormRef = useRef<HTMLFormElement | null>(null);
+  const simFormRef = useRef<HTMLFormElement | null>(null);
   const asgFormRef = useRef<HTMLFormElement | null>(null);
   const validTab = TABS.find((t) => t.id === initialTab)?.id || "students";
 
@@ -222,6 +222,7 @@ export function TeacherWorkspace({
   const [assignmentsList, setAssignmentsList] = useState<TeacherAssignmentItem[]>(assignments);
   const [quizzesList, setQuizzesList] = useState<TeacherQuizItem[]>(quizzes);
   const [submissionsList, setSubmissionsList] = useState<TeacherSubmissionItem[]>(submissions);
+  const [simAttemptsList, setSimAttemptsList] = useState<TeacherSimAttemptItem[]>(simAttempts);
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{
     endpoint: string;
@@ -249,6 +250,9 @@ export function TeacherWorkspace({
   useEffect(() => {
     setSubmissionsList(submissions);
   }, [submissions]);
+  useEffect(() => {
+    setSimAttemptsList(simAttempts);
+  }, [simAttempts]);
 
   // ===== MATERI STATE (CREATE / EDIT) =====
   const [editingMatId, setEditingMatId] = useState<string | null>(null);
@@ -265,16 +269,23 @@ export function TeacherWorkspace({
   const [matPdfFeedback, setMatPdfFeedback] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [savingMat, setSavingMat] = useState(false);
 
-  // ===== SIMULASI STATE (CREATE / EDIT) =====
+  // ===== SIMULASI STATE (CREATE / EDIT — ROLEPLAY PDF & GAMBAR) =====
   const [editingSimId, setEditingSimId] = useState<string | null>(null);
   const [simTitle, setSimTitle] = useState("");
   const [simSubtitle, setSimSubtitle] = useState("");
   const [simContext, setSimContext] = useState("");
+  const [simInstructions, setSimInstructions] = useState("");
   const [simCustomerName, setSimCustomerName] = useState("");
   const [simCustomerRole, setSimCustomerRole] = useState("");
   const [simDifficulty, setSimDifficulty] = useState<"Dasar" | "Menengah" | "Lanjut">("Dasar");
-  const [simMinutes, setSimMinutes] = useState(10);
-  const [simSteps, setSimSteps] = useState<SimulationStep[]>([makeEmptySimStep(1)]);
+  const [simMinutes, setSimMinutes] = useState(15);
+  const [simImageUrl, setSimImageUrl] = useState("");
+  const [simImageName, setSimImageName] = useState("");
+  const [simPdfUrl, setSimPdfUrl] = useState("");
+  const [simPdfName, setSimPdfName] = useState("");
+  const [uploadingSimImage, setUploadingSimImage] = useState(false);
+  const [uploadingSimPdf, setUploadingSimPdf] = useState(false);
+  const [simAssetFeedback, setSimAssetFeedback] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [savingSim, setSavingSim] = useState(false);
 
   // ===== LKPD / PROYEK STATE (CREATE / EDIT) =====
@@ -300,6 +311,7 @@ export function TeacherWorkspace({
   );
   const [quizTime, setQuizTime] = useState(15);
   const [quizPassing, setQuizPassing] = useState(75);
+  const [quizShuffle, setQuizShuffle] = useState(true);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([makeEmptyQuizQuestion(1)]);
   const [savingQuiz, setSavingQuiz] = useState(false);
 
@@ -318,8 +330,18 @@ export function TeacherWorkspace({
     )
   );
   const [savingGradeId, setSavingGradeId] = useState<string | null>(null);
-  const [simFeedbackDrafts, setSimFeedbackDrafts] = useState<Record<string, string>>(() =>
-    Object.fromEntries(simAttempts.map((s) => [s.id, s.teacherFeedback || ""]))
+  const [simGradeDrafts, setSimGradeDrafts] = useState<
+    Record<string, { score: string; feedback: string }>
+  >(() =>
+    Object.fromEntries(
+      simAttempts.map((s) => [
+        s.id,
+        {
+          score: s.status === "GRADED" ? String(s.score) : "",
+          feedback: s.teacherFeedback || "",
+        },
+      ])
+    )
   );
   const [savingSimFbId, setSavingSimFbId] = useState<string | null>(null);
 
@@ -503,14 +525,22 @@ export function TeacherWorkspace({
     setSimTitle(s.title);
     setSimSubtitle(s.subtitle);
     setSimContext(s.scenarioContext);
+    setSimInstructions(s.instructions || "");
     setSimCustomerName(s.customerName);
     setSimCustomerRole(s.customerRole);
     setSimDifficulty(
       s.difficulty === "Lanjut" || s.difficulty === "Menengah" ? s.difficulty : "Dasar"
     );
     setSimMinutes(s.estimatedMinutes);
-    setSimSteps(s.steps.length > 0 ? structuredClone(s.steps) : [makeEmptySimStep(1)]);
+    setSimImageUrl(s.imageUrl || "");
+    setSimImageName(s.imageName || "");
+    setSimPdfUrl(s.pdfUrl || "");
+    setSimPdfName(s.pdfName || "");
+    setSimAssetFeedback(null);
     notify("ok", `Mode Edit aktif untuk "${s.title}".`);
+    requestAnimationFrame(() => {
+      simFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   function resetSimulationForm() {
@@ -518,15 +548,21 @@ export function TeacherWorkspace({
     setSimTitle("");
     setSimSubtitle("");
     setSimContext("");
+    setSimInstructions("");
     setSimCustomerName("");
     setSimCustomerRole("");
     setSimDifficulty("Dasar");
-    setSimMinutes(10);
-    setSimSteps([makeEmptySimStep(1)]);
+    setSimMinutes(15);
+    setSimImageUrl("");
+    setSimImageName("");
+    setSimPdfUrl("");
+    setSimPdfName("");
+    setSimAssetFeedback(null);
   }
 
   async function handleSaveSimulation(e: React.FormEvent) {
     e.preventDefault();
+    if (uploadingSimImage || uploadingSimPdf) return;
     setSavingSim(true);
     setBanner(null);
     try {
@@ -541,11 +577,15 @@ export function TeacherWorkspace({
           title: simTitle,
           subtitle: simSubtitle,
           scenarioContext: simContext,
+          instructions: simInstructions.trim() || null,
           customerName: simCustomerName,
           customerRole: simCustomerRole,
           difficulty: simDifficulty,
           estimatedMinutes: simMinutes,
-          steps: simSteps,
+          imageUrl: simImageUrl || null,
+          imageName: simImageName || null,
+          pdfUrl: simPdfUrl || null,
+          pdfName: simPdfName || null,
         }),
       });
       const data = await res.json();
@@ -558,11 +598,16 @@ export function TeacherWorkspace({
           title: data.simulation.title,
           subtitle: data.simulation.subtitle,
           scenarioContext: data.simulation.scenarioContext,
+          instructions: data.simulation.instructions ?? null,
           customerName: data.simulation.customerName,
           customerRole: data.simulation.customerRole,
           difficulty: data.simulation.difficulty,
           estimatedMinutes: data.simulation.estimatedMinutes,
-          steps: structuredClone(simSteps),
+          imageUrl: data.simulation.imageUrl ?? null,
+          imageName: data.simulation.imageName ?? null,
+          pdfUrl: data.simulation.pdfUrl ?? null,
+          pdfName: data.simulation.pdfName ?? null,
+          steps: simulationsList.find((item) => item.id === editingSimId)?.steps ?? [],
           attemptsCount:
             simulationsList.find((item) => item.id === editingSimId)?.attemptsCount ?? 0,
         };
@@ -579,6 +624,80 @@ export function TeacherWorkspace({
       notify("err", err instanceof Error ? err.message : "Gagal menyimpan simulasi.");
     } finally {
       setSavingSim(false);
+    }
+  }
+
+  async function handleAttachSimulationImage(simId: string, file?: File) {
+    if (!file) return;
+    setUploadingTargetId(`sim-img-${simId}`);
+    setBanner(null);
+    try {
+      const uploaded = await uploadImageClient(file, "simulasi");
+      const res = await fetch(`/api/teacher/simulations/${simId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: uploaded.fileUrl, imageName: uploaded.fileName }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal menautkan gambar skenario.");
+      setSimulationsList((prev) =>
+        prev.map((item) =>
+          item.id === simId
+            ? { ...item, imageUrl: uploaded.fileUrl, imageName: uploaded.fileName }
+            : item
+        )
+      );
+      if (editingSimId === simId) {
+        setSimImageUrl(uploaded.fileUrl);
+        setSimImageName(uploaded.fileName);
+        setSimAssetFeedback({
+          type: "ok",
+          text: `Gambar "${uploaded.fileName}" sudah terpasang dan langsung tampil di halaman siswa.`,
+        });
+      }
+      notify("ok", `Gambar "${uploaded.fileName}" berhasil dipasang ke skenario simulasi!`);
+      router.refresh();
+    } catch (err) {
+      notify("err", err instanceof Error ? err.message : "Gagal mengunggah gambar.");
+    } finally {
+      setUploadingTargetId(null);
+    }
+  }
+
+  async function handleAttachSimulationPdf(simId: string, file?: File) {
+    if (!file) return;
+    setUploadingTargetId(`sim-pdf-${simId}`);
+    setBanner(null);
+    try {
+      const uploaded = await uploadPdfFile(file, "simulasi");
+      const res = await fetch(`/api/teacher/simulations/${simId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pdfUrl: uploaded.fileUrl, pdfName: uploaded.fileName }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal menautkan PDF soal.");
+      setSimulationsList((prev) =>
+        prev.map((item) =>
+          item.id === simId
+            ? { ...item, pdfUrl: uploaded.fileUrl, pdfName: uploaded.fileName }
+            : item
+        )
+      );
+      if (editingSimId === simId) {
+        setSimPdfUrl(uploaded.fileUrl);
+        setSimPdfName(uploaded.fileName);
+        setSimAssetFeedback({
+          type: "ok",
+          text: `PDF soal "${uploaded.fileName}" sudah terpasang di skenario ini.`,
+        });
+      }
+      notify("ok", `PDF soal "${uploaded.fileName}" berhasil dipasang ke skenario simulasi!`);
+      router.refresh();
+    } catch (err) {
+      notify("err", err instanceof Error ? err.message : "Gagal mengunggah PDF soal.");
+    } finally {
+      setUploadingTargetId(null);
     }
   }
 
@@ -774,6 +893,7 @@ export function TeacherWorkspace({
     );
     setQuizTime(q.timeLimitMinutes);
     setQuizPassing(q.passingScore);
+    setQuizShuffle(q.shuffleQuestions);
     setQuizQuestions(q.questions.length > 0 ? structuredClone(q.questions) : [makeEmptyQuizQuestion(1)]);
     notify("ok", `Mode Edit aktif untuk "${q.title}".`);
   }
@@ -785,6 +905,7 @@ export function TeacherWorkspace({
     setQuizCategory("EVALUASI");
     setQuizTime(15);
     setQuizPassing(75);
+    setQuizShuffle(true);
     setQuizQuestions([makeEmptyQuizQuestion(1)]);
   }
 
@@ -815,6 +936,7 @@ export function TeacherWorkspace({
           category: quizCategory,
           timeLimitMinutes: quizTime,
           passingScore: quizPassing,
+          shuffleQuestions: quizShuffle,
           questions: cleanedQuestions,
         }),
       });
@@ -828,6 +950,7 @@ export function TeacherWorkspace({
           category: data.quiz.category,
           timeLimitMinutes: data.quiz.timeLimitMinutes,
           passingScore: data.quiz.passingScore,
+          shuffleQuestions: Boolean(data.quiz.shuffleQuestions ?? quizShuffle),
           questions: cleanedQuestions,
           attemptsCount:
             quizzesList.find((item) => item.id === editingQuizId)?.attemptsCount ?? 0,
@@ -887,9 +1010,10 @@ export function TeacherWorkspace({
   }
 
   async function handleSaveSimFeedback(attemptId: string) {
-    const text = (simFeedbackDrafts[attemptId] || "").trim();
-    if (text.length < 3) {
-      notify("err", "Tuliskan umpan balik minimal 3 karakter.");
+    const draft = simGradeDrafts[attemptId] || { score: "", feedback: "" };
+    const numScore = Number(draft.score);
+    if (draft.score.trim() === "" || Number.isNaN(numScore) || numScore < 0 || numScore > 100) {
+      notify("err", "Masukkan nilai skenario simulasi antara 0 sampai 100.");
       return;
     }
     setSavingSimFbId(attemptId);
@@ -898,14 +1022,30 @@ export function TeacherWorkspace({
       const res = await fetch(`/api/teacher/simulations/${attemptId}/feedback`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teacherFeedback: text }),
+        body: JSON.stringify({
+          score: numScore,
+          teacherFeedback: draft.feedback.trim(),
+        }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal menyimpan umpan balik.");
+      if (!res.ok) throw new Error(data.error || "Gagal menyimpan nilai simulasi.");
+      setSimAttemptsList((prev) =>
+        prev.map((item) =>
+          item.id === attemptId
+            ? {
+                ...item,
+                status: "GRADED",
+                score: Math.round(numScore),
+                maxScore: 100,
+                teacherFeedback: draft.feedback.trim() || null,
+              }
+            : item
+        )
+      );
       notify("ok", data.message);
       router.refresh();
     } catch (err) {
-      notify("err", err instanceof Error ? err.message : "Gagal menyimpan umpan balik.");
+      notify("err", err instanceof Error ? err.message : "Gagal menyimpan nilai simulasi.");
     } finally {
       setSavingSimFbId(null);
     }
@@ -926,7 +1066,9 @@ export function TeacherWorkspace({
     btn?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
 
-  const pendingGrading = submissionsList.filter((s) => s.status !== "GRADED").length;
+  const pendingGrading =
+    submissionsList.filter((s) => s.status !== "GRADED").length +
+    simAttemptsList.filter((sa) => sa.status !== "GRADED").length;
 
   return (
     <div className="space-y-6">
@@ -1066,10 +1208,25 @@ export function TeacherWorkspace({
       {/* PANEL 1: PANTAU SISWA */}
       <div role="tabpanel" aria-labelledby="teacher-tab-students" hidden={activeTab !== "students"}>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
-          <h2 className="text-lg font-extrabold text-[#0f294a]">Pemantauan Kemajuan Belajar Siswa</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Rekap real-time penyelesaian materi, simulasi, rata-rata kuis, dan tugas seluruh siswa.
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-extrabold text-[#0f294a]">
+                Pemantauan Kemajuan Belajar Siswa
+              </h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Rekap real-time penyelesaian materi, simulasi, rata-rata kuis, dan tugas seluruh
+                siswa. Nilai lengkap hanya terlihat oleh guru dan dapat diekspor ke Excel.
+              </p>
+            </div>
+            <a
+              href="/api/teacher/export-grades"
+              download
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700"
+            >
+              <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
+              <span>Export Nilai ke Excel (.xlsx)</span>
+            </a>
+          </div>
           <div tabIndex={0} role="region" aria-label="Tabel progres siswa" className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[680px] text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
@@ -1506,7 +1663,7 @@ export function TeacherWorkspace({
         </div>
       </div>
 
-      {/* PANEL 3: KELOLA SIMULASI DIGITAL (TAMBAH / EDIT / HAPUS) */}
+      {/* PANEL 3: KELOLA SIMULASI / SKENARIO ROLEPLAY (GAMBAR & PDF) */}
       <div
         role="tabpanel"
         aria-labelledby="teacher-tab-simulations"
@@ -1515,33 +1672,132 @@ export function TeacherWorkspace({
         <div className="space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
             <h2 className="text-lg font-extrabold text-[#0f294a]">
-              Daftar Skenario Simulasi Digital ({simulationsList.length})
+              Daftar Skenario Simulasi &amp; Tugas Roleplay ({simulationsList.length})
             </h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Unggah gambar ilustrasi (PNG/JPG/WEBP maks. 4 MB) atau file PDF soal skenario (maks.
+              15 MB). Siswa mengunduh soal lalu mengumpulkan naskah dialog roleplay dalam format PDF.
+            </p>
             <div className="mt-4 divide-y divide-slate-100">
               {simulationsList.map((s) => (
                 <div
                   key={s.id}
-                  className="flex flex-col justify-between gap-3 py-4 sm:flex-row sm:items-center"
+                  className="flex flex-col justify-between gap-3 py-4 lg:flex-row lg:items-center"
                 >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-md bg-teal-700 px-2 py-0.5 text-xs font-bold text-white">
-                        S{s.order}
-                      </span>
-                      <Link
-                        href={`/simulasi/${s.slug}`}
-                        className="text-sm font-bold text-slate-900 hover:text-[#1d4ed8] hover:underline"
+                  <div className="flex items-start gap-3.5">
+                    {s.imageUrl ? (
+                      <a
+                        href={s.imageUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="h-14 w-20 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100"
                       >
-                        {s.title}
-                      </Link>
+                        <img
+                          src={s.imageUrl}
+                          alt={`Ilustrasi ${s.title}`}
+                          className="h-full w-full object-cover"
+                        />
+                      </a>
+                    ) : (
+                      <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-400">
+                        <ImageIcon className="h-5 w-5" aria-hidden="true" />
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-md bg-teal-700 px-2 py-0.5 text-xs font-bold text-white">
+                          S{s.order}
+                        </span>
+                        <Link
+                          href={`/simulasi/${s.slug}`}
+                          className="text-sm font-bold text-slate-900 hover:text-[#1d4ed8] hover:underline"
+                        >
+                          {s.title}
+                        </Link>
+                      </div>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Tamu: {s.customerName} ({s.customerRole}) • Tingkat {s.difficulty} •{" "}
+                        {s.attemptsCount} pengumpulan PDF siswa
+                      </p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
+                        {s.imageUrl ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-2 py-0.5 font-semibold text-sky-700">
+                            <ImageIcon className="h-3 w-3" aria-hidden="true" />
+                            <span>Gambar terpasang</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">Belum ada gambar</span>
+                        )}
+                        {s.pdfUrl ? (
+                          <a
+                            href={s.pdfUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700 hover:underline"
+                          >
+                            <FileText className="h-3 w-3" aria-hidden="true" />
+                            <span>{s.pdfName || "PDF Soal"}</span>
+                          </a>
+                        ) : (
+                          <span className="text-slate-400">• Soal teks cetak PDF otomatis</span>
+                        )}
+                      </div>
                     </div>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      Tamu: {s.customerName} ({s.customerRole}) • {s.steps.length} langkah • Tingkat{" "}
-                      {s.difficulty} • {s.attemptsCount}x dicoba siswa
-                    </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label
+                      htmlFor={`sim-img-upload-${s.id}`}
+                      className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-800 hover:bg-sky-100"
+                    >
+                      {uploadingTargetId === `sim-img-${s.id}` ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <ImageIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                      )}
+                      <span>{s.imageUrl ? "Ganti Gambar" : "Upload Gambar"}</span>
+                    </label>
+                    <input
+                      id={`sim-img-upload-${s.id}`}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="visually-hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = "";
+                        handleAttachSimulationImage(s.id, f);
+                      }}
+                    />
+
+                    <label
+                      htmlFor={`sim-pdf-upload-${s.id}`}
+                      className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100"
+                    >
+                      {uploadingTargetId === `sim-pdf-${s.id}` ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                      )}
+                      <span>
+                        {uploadingTargetId === `sim-pdf-${s.id}`
+                          ? `${uploadPercent}%`
+                          : s.pdfUrl
+                            ? "Ganti PDF"
+                            : "Upload PDF"}
+                      </span>
+                    </label>
+                    <input
+                      id={`sim-pdf-upload-${s.id}`}
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      className="visually-hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = "";
+                        handleAttachSimulationPdf(s.id, f);
+                      }}
+                    />
+
                     <button
                       type="button"
                       onClick={() => startEditSimulation(s)}
@@ -1557,7 +1813,7 @@ export function TeacherWorkspace({
                           endpoint: `/api/teacher/simulations/${s.id}`,
                           id: s.id,
                           title: "Hapus skenario simulasi ini?",
-                          description: `Skenario "${s.title}" beserta riwayat percobaan siswa akan dihapus permanen.`,
+                          description: `Skenario "${s.title}" beserta seluruh unggahan PDF siswa akan dihapus permanen.`,
                           onAfter: () => {
                             if (editingSimId === s.id) resetSimulationForm();
                           },
@@ -1574,15 +1830,24 @@ export function TeacherWorkspace({
             </div>
           </div>
 
-          {/* Form Tambah / Edit Simulasi */}
+          {/* Form Tambah / Edit Simulasi Roleplay PDF + Gambar */}
           <form
+            ref={simFormRef}
             onSubmit={handleSaveSimulation}
             className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-extrabold text-[#0f294a]">
-                {editingSimId ? "Edit Skenario Simulasi" : "Tambah Skenario Simulasi Baru"}
-              </h3>
+              <div>
+                <h3 className="text-base font-extrabold text-[#0f294a]">
+                  {editingSimId
+                    ? "Edit Skenario Simulasi Roleplay"
+                    : "Tambah Skenario Simulasi Roleplay Baru"}
+                </h3>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Skenario ini dapat diunduh siswa sebagai PDF soal roleplay, lalu siswa menyusun
+                  dialog dan mengunggah hasilnya dalam format PDF.
+                </p>
+              </div>
               {editingSimId && (
                 <button
                   type="button"
@@ -1598,31 +1863,33 @@ export function TeacherWorkspace({
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="sim-title" className="block text-xs font-bold text-slate-700">
-                  Judul Simulasi
+                  Judul Skenario Simulasi
                 </label>
                 <input
                   id="sim-title"
                   required
                   value={simTitle}
                   onChange={(e) => setSimTitle(e.target.value)}
+                  placeholder="Contoh: Tamu dengan Janji Temu"
                   className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm"
                 />
               </div>
               <div>
                 <label htmlFor="sim-sub" className="block text-xs font-bold text-slate-700">
-                  Subjudul
+                  Subjudul / Fokus Materi
                 </label>
                 <input
                   id="sim-sub"
                   required
                   value={simSubtitle}
                   onChange={(e) => setSimSubtitle(e.target.value)}
+                  placeholder="Contoh: Materi 1 • Penerimaan Tamu Langsung"
                   className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm"
                 />
               </div>
               <div>
                 <label htmlFor="sim-cust" className="block text-xs font-bold text-slate-700">
-                  Nama Tamu Kantor
+                  Nama Tamu / Penelepon
                 </label>
                 <input
                   id="sim-cust"
@@ -1671,183 +1938,313 @@ export function TeacherWorkspace({
                   id="sim-min"
                   type="number"
                   min={3}
-                  max={60}
+                  max={120}
                   value={simMinutes}
                   onChange={(e) => setSimMinutes(Number(e.target.value))}
                   className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm"
                 />
               </div>
+
               <div className="sm:col-span-2">
                 <label htmlFor="sim-ctx" className="block text-xs font-bold text-slate-700">
-                  Konteks Skenario Perkantoran
+                  Teks Soal &amp; Konteks Skenario Roleplay
                 </label>
                 <textarea
                   id="sim-ctx"
                   required
-                  rows={2}
+                  rows={4}
                   value={simContext}
                   onChange={(e) => setSimContext(e.target.value)}
+                  placeholder="Tuliskan situasi lengkap, kronologi kedatangan/telepon tamu, dan tantangan yang harus diselesaikan dalam dialog roleplay siswa..."
                   className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-sm"
                 />
               </div>
-            </div>
 
-            {/* Builder Langkah Dialog */}
-            <div className="space-y-4">
-              {simSteps.map((step, sIdx) => (
-                <div
-                  key={step.id}
-                  className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-[#0f294a]">
-                      Langkah Dialog #{sIdx + 1}
-                    </span>
-                    {simSteps.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => setSimSteps((prev) => prev.filter((_, i) => i !== sIdx))}
-                        className="text-xs font-bold text-rose-600 hover:underline"
-                      >
-                        Hapus Langkah
-                      </button>
+              <div className="sm:col-span-2">
+                <label htmlFor="sim-inst" className="block text-xs font-bold text-slate-700">
+                  Panduan Tugas Roleplay &amp; Pembuatan Dialog (Opsional)
+                </label>
+                <textarea
+                  id="sim-inst"
+                  rows={3}
+                  value={simInstructions}
+                  onChange={(e) => setSimInstructions(e.target.value)}
+                  placeholder="Contoh: 1) Buat naskah dialog berpasangan (Resepsionis & Tamu) menerapkan 3S. 2) Sertakan pengisian buku tamu. 3) Simpan dialog menjadi PDF lalu unggah."
+                  className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-sm"
+                />
+              </div>
+
+              {/* Upload Gambar Ilustrasi Skenario */}
+              <div className="rounded-2xl border border-dashed border-sky-300 bg-sky-50/40 p-4">
+                <p className="text-xs font-extrabold text-sky-900">
+                  Gambar Ilustrasi Skenario (PNG/JPG/WEBP, maks. 4 MB)
+                </p>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  Tampil di kartu skenario dan lembar soal roleplay yang dicetak siswa.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <label
+                    htmlFor="sim-form-img"
+                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-sky-300 bg-white px-3.5 py-2 text-xs font-bold text-sky-800 hover:bg-sky-50"
+                  >
+                    {uploadingSimImage ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <ImageIcon className="h-3.5 w-3.5" aria-hidden="true" />
                     )}
-                  </div>
-
+                    <span>
+                      {uploadingSimImage
+                        ? "Mengunggah Gambar..."
+                        : simImageUrl
+                          ? "Ganti Gambar"
+                          : "Pilih Gambar Skenario"}
+                    </span>
+                  </label>
                   <input
-                    required
-                    value={step.situation}
-                    onChange={(e) => {
-                      const next = structuredClone(simSteps);
-                      next[sIdx].situation = e.target.value;
-                      setSimSteps(next);
+                    id="sim-form-img"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="visually-hidden"
+                    disabled={uploadingSimImage}
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!f) return;
+                      setUploadingSimImage(true);
+                      setSimAssetFeedback(null);
+                      try {
+                        const up = await uploadImageClient(f, "simulasi");
+                        setSimImageUrl(up.fileUrl);
+                        setSimImageName(up.fileName);
+                        if (editingSimId) {
+                          const patchRes = await fetch(`/api/teacher/simulations/${editingSimId}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              imageUrl: up.fileUrl,
+                              imageName: up.fileName,
+                            }),
+                          });
+                          const patchData = await patchRes.json();
+                          if (!patchRes.ok) {
+                            throw new Error(patchData.error || "Gagal menyimpan gambar skenario.");
+                          }
+                          setSimulationsList((prev) =>
+                            prev.map((item) =>
+                              item.id === editingSimId
+                                ? { ...item, imageUrl: up.fileUrl, imageName: up.fileName }
+                                : item
+                            )
+                          );
+                          setSimAssetFeedback({
+                            type: "ok",
+                            text: `Gambar "${up.fileName}" langsung tersimpan ke skenario ini.`,
+                          });
+                          router.refresh();
+                        } else {
+                          setSimAssetFeedback({
+                            type: "ok",
+                            text: `Gambar "${up.fileName}" terunggah. Klik "Terbitkan Skenario" untuk menyimpan.`,
+                          });
+                        }
+                      } catch (err) {
+                        const msg = err instanceof Error ? err.message : "Gagal unggah gambar.";
+                        setSimAssetFeedback({ type: "err", text: msg });
+                        notify("err", msg);
+                      } finally {
+                        setUploadingSimImage(false);
+                      }
                     }}
-                    placeholder="Situasi langkah (misal: Tamu mendekati meja resepsionis...)"
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs"
                   />
-                  <input
-                    required
-                    value={step.customerDialog}
-                    onChange={(e) => {
-                      const next = structuredClone(simSteps);
-                      next[sIdx].customerDialog = e.target.value;
-                      setSimSteps(next);
-                    }}
-                    placeholder="Dialog tamu (misal: Selamat pagi, saya ingin bertemu bagian keuangan...)"
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs"
-                  />
-                  <input
-                    required
-                    value={step.prompt}
-                    onChange={(e) => {
-                      const next = structuredClone(simSteps);
-                      next[sIdx].prompt = e.target.value;
-                      setSimSteps(next);
-                    }}
-                    placeholder="Pertanyaan untuk siswa"
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs"
-                  />
-
-                  <div className="space-y-2.5 pl-2">
-                    {step.options.map((opt, oIdx) => (
-                      <div
-                        key={opt.id}
-                        className="grid gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-12"
-                      >
-                        <input
-                          required
-                          value={opt.text}
-                          onChange={(e) => {
-                            const next = structuredClone(simSteps);
-                            next[sIdx].options[oIdx].text = e.target.value;
-                            setSimSteps(next);
-                          }}
-                          placeholder={`Pilihan ${String.fromCharCode(65 + oIdx)}`}
-                          className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs sm:col-span-6"
-                        />
-                        <select
-                          aria-label="Rating pilihan"
-                          value={opt.rating}
-                          onChange={(e) => {
-                            const next = structuredClone(simSteps);
-                            next[sIdx].options[oIdx].rating = e.target.value;
-                            setSimSteps(next);
-                          }}
-                          className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs sm:col-span-3"
-                        >
-                          <option value="Sangat Tepat">Sangat Tepat</option>
-                          <option value="Cukup">Cukup</option>
-                          <option value="Kurang Tepat">Kurang Tepat</option>
-                        </select>
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          value={opt.score}
-                          onChange={(e) => {
-                            const next = structuredClone(simSteps);
-                            next[sIdx].options[oIdx].score = Number(e.target.value);
-                            setSimSteps(next);
-                          }}
-                          aria-label="Skor pilihan"
-                          className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs sm:col-span-3"
-                        />
-                        <input
-                          required
-                          value={opt.feedback}
-                          onChange={(e) => {
-                            const next = structuredClone(simSteps);
-                            next[sIdx].options[oIdx].feedback = e.target.value;
-                            setSimSteps(next);
-                          }}
-                          placeholder="Umpan balik instan untuk pilihan ini..."
-                          className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs sm:col-span-12"
-                        />
-                      </div>
-                    ))}
+                  {simImageUrl && (
                     <button
                       type="button"
-                      onClick={() => {
-                        const next = structuredClone(simSteps);
-                        next[sIdx].options.push({
-                          id: String.fromCharCode(97 + next[sIdx].options.length),
-                          text: "",
-                          score: 25,
-                          rating: "Cukup",
-                          feedback: "",
-                        });
-                        setSimSteps(next);
+                      onClick={async () => {
+                        setSimImageUrl("");
+                        setSimImageName("");
+                        if (editingSimId) {
+                          await fetch(`/api/teacher/simulations/${editingSimId}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ imageUrl: null, imageName: null }),
+                          });
+                          setSimulationsList((prev) =>
+                            prev.map((item) =>
+                              item.id === editingSimId
+                                ? { ...item, imageUrl: null, imageName: null }
+                                : item
+                            )
+                          );
+                          router.refresh();
+                        }
                       }}
-                      className="text-xs font-bold text-[#1d4ed8] hover:underline"
+                      className="text-xs font-semibold text-rose-600 hover:underline"
                     >
-                      + Tambah Pilihan Tindakan
+                      Hapus Gambar
                     </button>
-                  </div>
+                  )}
                 </div>
-              ))}
+                {simImageUrl && (
+                  <div className="mt-3 overflow-hidden rounded-xl border border-sky-200 bg-white">
+                    <img
+                      src={simImageUrl}
+                      alt={simImageName || "Pratinjau gambar skenario"}
+                      className="max-h-40 w-full object-contain"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Upload PDF Soal Skenario */}
+              <div className="rounded-2xl border border-dashed border-rose-300 bg-rose-50/40 p-4">
+                <p className="text-xs font-extrabold text-rose-900">
+                  Lampiran File PDF Soal Roleplay (Opsional, maks. 15 MB)
+                </p>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  Jika kosong, siswa tetap bisa mengunduh/mencetak teks soal di atas menjadi PDF.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <label
+                    htmlFor="sim-form-pdf"
+                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-rose-300 bg-white px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50"
+                  >
+                    {uploadingSimPdf ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                    )}
+                    <span>
+                      {uploadingSimPdf
+                        ? `Mengunggah PDF... ${uploadPercent}%`
+                        : simPdfUrl
+                          ? "Ganti PDF Soal"
+                          : "Pilih File PDF Soal"}
+                    </span>
+                  </label>
+                  <input
+                    id="sim-form-pdf"
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    className="visually-hidden"
+                    disabled={uploadingSimPdf}
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!f) return;
+                      setUploadingSimPdf(true);
+                      setSimAssetFeedback(null);
+                      try {
+                        const up = await uploadPdfFile(f, "simulasi");
+                        setSimPdfUrl(up.fileUrl);
+                        setSimPdfName(up.fileName);
+                        if (editingSimId) {
+                          const patchRes = await fetch(`/api/teacher/simulations/${editingSimId}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              pdfUrl: up.fileUrl,
+                              pdfName: up.fileName,
+                            }),
+                          });
+                          const patchData = await patchRes.json();
+                          if (!patchRes.ok) {
+                            throw new Error(patchData.error || "Gagal menyimpan PDF skenario.");
+                          }
+                          setSimulationsList((prev) =>
+                            prev.map((item) =>
+                              item.id === editingSimId
+                                ? { ...item, pdfUrl: up.fileUrl, pdfName: up.fileName }
+                                : item
+                            )
+                          );
+                          setSimAssetFeedback({
+                            type: "ok",
+                            text: `PDF soal "${up.fileName}" langsung tersimpan ke skenario ini.`,
+                          });
+                          router.refresh();
+                        } else {
+                          setSimAssetFeedback({
+                            type: "ok",
+                            text: `PDF "${up.fileName}" terunggah. Klik "Terbitkan Skenario" untuk menyimpan.`,
+                          });
+                        }
+                      } catch (err) {
+                        const msg = err instanceof Error ? err.message : "Gagal unggah PDF.";
+                        setSimAssetFeedback({ type: "err", text: msg });
+                        notify("err", msg);
+                      } finally {
+                        setUploadingSimPdf(false);
+                      }
+                    }}
+                  />
+                  {simPdfUrl && (
+                    <>
+                      <a
+                        href={simPdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100"
+                      >
+                        <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span className="max-w-[180px] truncate">{simPdfName || "Soal.pdf"}</span>
+                        <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setSimPdfUrl("");
+                          setSimPdfName("");
+                          if (editingSimId) {
+                            await fetch(`/api/teacher/simulations/${editingSimId}`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ pdfUrl: null, pdfName: null }),
+                            });
+                            setSimulationsList((prev) =>
+                              prev.map((item) =>
+                                item.id === editingSimId
+                                  ? { ...item, pdfUrl: null, pdfName: null }
+                                  : item
+                              )
+                            );
+                            router.refresh();
+                          }
+                        }}
+                        className="text-xs font-semibold text-rose-600 hover:underline"
+                      >
+                        Lepas PDF
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => setSimSteps((prev) => [...prev, makeEmptySimStep(prev.length + 1)])}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+            {simAssetFeedback && (
+              <p
+                role={simAssetFeedback.type === "err" ? "alert" : "status"}
+                className={`text-xs font-semibold ${
+                  simAssetFeedback.type === "ok" ? "text-emerald-700" : "text-rose-600"
+                }`}
               >
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                <span>Tambah Langkah Dialog</span>
-              </button>
+                {simAssetFeedback.text}
+              </p>
+            )}
 
+            <div className="flex justify-end">
               <button
                 type="submit"
-                disabled={savingSim}
+                disabled={savingSim || uploadingSimImage || uploadingSimPdf}
                 className="inline-flex items-center gap-2 rounded-xl bg-[#0f766e] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#0d625c] disabled:opacity-60"
               >
-                {savingSim ? (
+                {savingSim || uploadingSimImage || uploadingSimPdf ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : (
                   <Save className="h-4 w-4" aria-hidden="true" />
                 )}
-                <span>{editingSimId ? "Simpan Perubahan Simulasi" : "Terbitkan Simulasi Baru"}</span>
+                <span>
+                  {editingSimId ? "Simpan Perubahan Skenario" : "Terbitkan Skenario Baru"}
+                </span>
               </button>
             </div>
           </form>
@@ -2456,13 +2853,24 @@ export function TeacherWorkspace({
                   className="flex flex-col justify-between gap-3 py-4 sm:flex-row sm:items-center"
                 >
                   <div>
-                    <span className="text-[11px] font-bold uppercase text-indigo-700">
-                      {q.category}
-                    </span>
-                    <p className="text-sm font-bold text-slate-900">{q.title}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] font-bold uppercase text-indigo-700">
+                        {q.category}
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                        1x Kesempatan
+                      </span>
+                      {q.shuffleQuestions && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700">
+                          <Shuffle className="h-2.5 w-2.5" aria-hidden="true" />
+                          <span>Acak Soal</span>
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-sm font-bold text-slate-900">{q.title}</p>
                     <p className="text-xs text-slate-500">
                       {q.questions.length} soal • {q.timeLimitMinutes} menit • KKM {q.passingScore}{" "}
-                      • {q.attemptsCount}x dikerjakan siswa
+                      • {q.attemptsCount} siswa sudah mengerjakan
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -2592,6 +3000,23 @@ export function TeacherWorkspace({
                     className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
                   />
                 </div>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-violet-200 bg-violet-50/60 px-4 py-3 text-xs font-semibold text-violet-950">
+                  <input
+                    type="checkbox"
+                    checked={quizShuffle}
+                    onChange={(e) => setQuizShuffle(e.target.checked)}
+                    className="h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-500"
+                  />
+                  <span className="flex items-center gap-1.5">
+                    <Shuffle className="h-3.5 w-3.5 text-violet-600" aria-hidden="true" />
+                    <span>
+                      Acak urutan soal secara otomatis untuk setiap siswa (kuis hanya bisa
+                      dikerjakan 1x per siswa dan nilai tidak ditampilkan di halaman siswa)
+                    </span>
+                  </span>
+                </label>
               </div>
             </div>
 
@@ -2729,9 +3154,25 @@ export function TeacherWorkspace({
       <div role="tabpanel" aria-labelledby="teacher-tab-grading" hidden={activeTab !== "grading"}>
         <div className="space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
-            <h2 className="text-lg font-extrabold text-[#0f294a]">
-              Penilaian Pengumpulan LKPD &amp; Proyek Siswa
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-extrabold text-[#0f294a]">
+                  Penilaian Pengumpulan LKPD &amp; Proyek Siswa
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Nilai yang Anda simpan masuk ke rekap guru (tidak ditampilkan ke siswa) dan siap
+                  diekspor ke Excel.
+                </p>
+              </div>
+              <a
+                href="/api/teacher/export-grades"
+                download
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700"
+              >
+                <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
+                <span>Export Semua Nilai (.xlsx)</span>
+              </a>
+            </div>
 
             {submissionsList.length === 0 ? (
               <p className="mt-4 text-sm text-slate-500">Belum ada tugas yang dikumpulkan siswa.</p>
@@ -2885,64 +3326,132 @@ export function TeacherWorkspace({
             <div className="flex items-center gap-2">
               <MessageSquareText className="h-5 w-5 text-[#1d4ed8]" aria-hidden="true" />
               <h2 className="text-lg font-extrabold text-[#0f294a]">
-                Umpan Balik Hasil Simulasi Digital Siswa
+                Penilaian Skenario Simulasi Roleplay (PDF Dialog Siswa)
               </h2>
             </div>
 
-            {simAttempts.length === 0 ? (
-              <p className="mt-4 text-sm text-slate-500">Belum ada hasil simulasi siswa.</p>
+            {simAttemptsList.length === 0 ? (
+              <p className="mt-4 text-sm text-slate-500">
+                Belum ada unggahan PDF dialog roleplay dari siswa.
+              </p>
             ) : (
-              <div className="mt-4 space-y-3">
-                {simAttempts.map((sa) => (
-                  <div
-                    key={sa.id}
-                    className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-xs"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-bold text-slate-900">
-                        {sa.studentName} ({sa.studentClass || "Siswa"}) — {sa.simulationTitle}
-                      </p>
-                      <span className="rounded-lg bg-blue-100 px-2.5 py-0.5 font-extrabold text-[#0f294a]">
-                        Skor {sa.score}/{sa.maxScore} (
-                        {Math.round((sa.score / Math.max(1, sa.maxScore)) * 100)}%) •{" "}
-                        {sa.completedAtLabel}
-                      </span>
-                    </div>
-                    {sa.reflection && (
-                      <p className="mt-2 rounded-lg bg-white p-2.5 text-slate-700 ring-1 ring-slate-200/70">
-                        <strong>Refleksi Siswa:</strong> {sa.reflection}
-                      </p>
-                    )}
-                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                      <label htmlFor={`sim-fb-${sa.id}`} className="visually-hidden">
-                        Umpan balik guru untuk {sa.studentName}
-                      </label>
-                      <input
-                        id={`sim-fb-${sa.id}`}
-                        type="text"
-                        value={simFeedbackDrafts[sa.id] || ""}
-                        onChange={(e) =>
-                          setSimFeedbackDrafts((prev) => ({ ...prev, [sa.id]: e.target.value }))
-                        }
-                        placeholder="Tulis umpan balik guru untuk simulasi ini..."
-                        className="flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs"
-                      />
-                      <button
-                        type="button"
-                        disabled={savingSimFbId === sa.id}
-                        onClick={() => handleSaveSimFeedback(sa.id)}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0f294a] px-4 py-2 text-xs font-bold text-white hover:bg-[#163a66] disabled:opacity-60"
-                      >
-                        {savingSimFbId === sa.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                        ) : (
-                          <Save className="h-3.5 w-3.5" aria-hidden="true" />
-                        )}
-                        <span>Kirim Umpan Balik</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              <div className="mt-4 space-y-4">
+                {simAttemptsList.map((sa) => {
+                  const draft = simGradeDrafts[sa.id] || {
+                    score: sa.status === "GRADED" ? String(sa.score) : "",
+                    feedback: sa.teacherFeedback || "",
+                  };
+                  return (
+                    <article
+                      key={sa.id}
+                      className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-xs"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-extrabold text-slate-900">
+                            {sa.studentName}{" "}
+                            <span className="font-normal text-slate-500">
+                              ({sa.studentClass || "Siswa"}) — {sa.simulationTitle}
+                            </span>
+                          </p>
+                          <p className="mt-0.5 text-slate-500">Dikirim: {sa.completedAtLabel}</p>
+                        </div>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                            sa.status === "GRADED"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-amber-100 text-amber-800"
+                          }`}
+                        >
+                          {sa.status === "GRADED" ? `Nilai: ${sa.score}/100` : "Perlu Dinilai"}
+                        </span>
+                      </div>
+
+                      {sa.fileUrl && (
+                        <div className="mt-3">
+                          <a
+                            href={sa.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-rose-50 px-3.5 py-2 font-bold text-rose-700 ring-1 ring-rose-200/80 hover:bg-rose-100"
+                          >
+                            <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span>Lihat PDF Dialog Siswa: {sa.fileName || "DialogRoleplay.pdf"}</span>
+                            <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                          </a>
+                        </div>
+                      )}
+
+                      {sa.reflection && (
+                        <p className="mt-2.5 rounded-lg bg-white p-2.5 text-slate-700 ring-1 ring-slate-200/70">
+                          <strong>Catatan / Anggota Kelompok:</strong> {sa.reflection}
+                        </p>
+                      )}
+
+                      <div className="mt-3 grid gap-3 border-t border-slate-200 pt-3 sm:grid-cols-12">
+                        <div className="sm:col-span-3">
+                          <label
+                            htmlFor={`sim-score-${sa.id}`}
+                            className="block text-[11px] font-bold text-slate-700"
+                          >
+                            Nilai (0–100)
+                          </label>
+                          <input
+                            id={`sim-score-${sa.id}`}
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={draft.score}
+                            onChange={(e) =>
+                              setSimGradeDrafts((prev) => ({
+                                ...prev,
+                                [sa.id]: { ...draft, score: e.target.value },
+                              }))
+                            }
+                            placeholder="0–100"
+                            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold"
+                          />
+                        </div>
+                        <div className="sm:col-span-6">
+                          <label
+                            htmlFor={`sim-fb-${sa.id}`}
+                            className="block text-[11px] font-bold text-slate-700"
+                          >
+                            Umpan Balik Guru (Opsional)
+                          </label>
+                          <input
+                            id={`sim-fb-${sa.id}`}
+                            type="text"
+                            value={draft.feedback}
+                            onChange={(e) =>
+                              setSimGradeDrafts((prev) => ({
+                                ...prev,
+                                [sa.id]: { ...draft, feedback: e.target.value },
+                              }))
+                            }
+                            placeholder="Tulis apresiasi atau catatan perbaikan dialog roleplay..."
+                            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm"
+                          />
+                        </div>
+                        <div className="flex items-end sm:col-span-3">
+                          <button
+                            type="button"
+                            disabled={savingSimFbId === sa.id}
+                            onClick={() => handleSaveSimFeedback(sa.id)}
+                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#0f294a] px-4 py-2 text-xs font-bold text-white hover:bg-[#163a66] disabled:opacity-60"
+                          >
+                            {savingSimFbId === sa.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <Save className="h-3.5 w-3.5" aria-hidden="true" />
+                            )}
+                            <span>Simpan Nilai</span>
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </div>

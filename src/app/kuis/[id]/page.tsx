@@ -1,11 +1,15 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Clock, HelpCircle, History } from "lucide-react";
+import { ArrowLeft, Clock, HelpCircle, Shuffle } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/DashboardShell";
 import { QuizRunner } from "@/components/QuizRunner";
-import { parseQuizQuestions } from "@/lib/assessment";
+import {
+  formatIndoDate,
+  parseQuizQuestions,
+  shuffleItemsForStudent,
+} from "@/lib/assessment";
 
 export const dynamic = "force-dynamic";
 
@@ -21,20 +25,29 @@ export default async function QuizDetailPage({
   const quiz = await prisma.quiz.findUnique({ where: { id } });
   if (!quiz) notFound();
 
-  const previousAttempts = await prisma.quizAttempt.findMany({
-    where: { userId: user.id, quizId: quiz.id },
-    orderBy: { completedAt: "desc" },
-    take: 5,
-  });
+  const existingAttempt =
+    user.role === "STUDENT"
+      ? await prisma.quizAttempt.findFirst({
+          where: { userId: user.id, quizId: quiz.id },
+          orderBy: { completedAt: "desc" },
+          select: { id: true, completedAt: true },
+        })
+      : null;
 
   const allQuestions = parseQuizQuestions(quiz.questionsJson);
-  // Hapus correctIndex & explanation dari payload client siswa agar kunci tidak bocor sebelum submit
-  const safeQuestions = allQuestions.map((q) => ({
+  // Hapus correctIndex & explanation dari payload client siswa agar kunci tidak bocor
+  const safeQuestionsRaw = allQuestions.map((q) => ({
     id: q.id,
     type: q.type,
     question: q.question,
     options: q.options,
   }));
+
+  // Acak urutan soal unik per siswa apabila fitur acak soal aktif
+  const safeQuestions =
+    user.role === "STUDENT" && quiz.shuffleQuestions
+      ? shuffleItemsForStudent(safeQuestionsRaw, `${user.id}:${quiz.id}`)
+      : safeQuestionsRaw;
 
   return (
     <DashboardShell user={user}>
@@ -47,12 +60,18 @@ export default async function QuizDetailPage({
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             <span>Kembali ke Daftar Kuis</span>
           </Link>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-            <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>
-              {quiz.timeLimitMinutes} menit • KKM {quiz.passingScore}
+          <div className="flex flex-wrap items-center gap-2">
+            {quiz.shuffleQuestions && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                <Shuffle className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Soal Diacak</span>
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+              <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{quiz.timeLimitMinutes} menit • 1x kesempatan</span>
             </span>
-          </span>
+          </div>
         </div>
 
         <header className="space-y-1.5">
@@ -74,10 +93,12 @@ export default async function QuizDetailPage({
               description: quiz.description,
               category: quiz.category,
               timeLimitMinutes: quiz.timeLimitMinutes,
-              passingScore: quiz.passingScore,
+              shuffleQuestions: quiz.shuffleQuestions,
             }}
             questions={safeQuestions}
-            userRole={user.role}
+            alreadySubmittedAt={
+              existingAttempt ? formatIndoDate(existingAttempt.completedAt) : null
+            }
           />
         ) : (
           <div className="space-y-4">
@@ -87,8 +108,10 @@ export default async function QuizDetailPage({
                   Mode Pratinjau &amp; Kunci Jawaban ({user.role === "ADMIN" ? "Admin" : "Guru"})
                 </p>
                 <p className="mt-0.5 text-xs text-slate-600">
-                  Guru/Admin tidak mengerjakan kuis sebagai siswa. Anda dapat meninjau kunci
-                  jawaban di bawah atau mengedit soal di Panel Guru.
+                  Kuis ini hanya bisa dikerjakan 1x per siswa{" "}
+                  {quiz.shuffleQuestions
+                    ? "dengan urutan soal diacak otomatis per siswa."
+                    : "dengan urutan soal tetap."}
                 </p>
               </div>
               <Link
@@ -125,35 +148,6 @@ export default async function QuizDetailPage({
               </article>
             ))}
           </div>
-        )}
-
-        {previousAttempts.length > 0 && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-5">
-            <div className="flex items-center gap-2">
-              <History className="h-4 w-4 text-[#1d4ed8]" aria-hidden="true" />
-              <h2 className="text-sm font-extrabold text-[#0f294a]">Riwayat Nilai Kuis Ini</h2>
-            </div>
-            <ul className="mt-3 space-y-2 text-xs">
-              {previousAttempts.map((a, idx) => (
-                <li
-                  key={a.id}
-                  className="flex items-center justify-between rounded-xl bg-slate-50 px-3.5 py-2.5"
-                >
-                  <span className="text-slate-600">
-                    Percobaan #{previousAttempts.length - idx} • Benar {a.correctCount}/
-                    {a.totalQuestions}
-                  </span>
-                  <span
-                    className={`font-extrabold ${
-                      a.score >= quiz.passingScore ? "text-emerald-700" : "text-amber-700"
-                    }`}
-                  >
-                    Nilai {a.score}/100
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
         )}
       </div>
     </DashboardShell>

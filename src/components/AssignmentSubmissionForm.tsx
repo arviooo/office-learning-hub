@@ -136,16 +136,16 @@ export function AssignmentSubmissionForm({
 
   return (
     <div className="space-y-5">
-      {/* Status Penilaian Guru (jika sudah dinilai) */}
+      {/* Status Pemeriksaan Guru (Tanpa menampilkan angka nilai di sisi siswa) */}
       {initialSubmission?.status === "GRADED" && (
         <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-emerald-900">
               <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-hidden="true" />
-              <h2 className="text-base font-extrabold">Sudah Dinilai oleh Guru</h2>
+              <h2 className="text-base font-extrabold">Sudah Diperiksa oleh Guru</h2>
             </div>
-            <span className="rounded-xl bg-emerald-600 px-3.5 py-1 text-sm font-extrabold text-white">
-              Nilai: {initialSubmission.score ?? 0} / 100
+            <span className="rounded-xl bg-emerald-600 px-3.5 py-1 text-xs font-extrabold text-white">
+              Tercatat di Rekap Guru
             </span>
           </div>
           {initialSubmission.teacherFeedback && (
@@ -174,9 +174,9 @@ export function AssignmentSubmissionForm({
             }`}
           >
             {submissionStatus === "GRADED"
-              ? "Sudah Dinilai"
+              ? "Sudah Diperiksa"
               : submissionStatus
-              ? "Terkirim (Menunggu Penilaian)"
+              ? "Terkirim (Menunggu Pemeriksaan)"
               : "Belum Dikumpulkan"}
           </span>
         </div>

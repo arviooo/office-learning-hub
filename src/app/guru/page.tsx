@@ -63,7 +63,7 @@ export default async function TeacherDashboardPage({
           simulation: { select: { title: true } },
         },
         orderBy: { completedAt: "desc" },
-        take: 15,
+        take: 50,
       }),
     ]);
 
@@ -88,7 +88,9 @@ export default async function TeacherDashboardPage({
     };
   });
 
-  const pendingGradingCount = submissions.filter((s) => s.status !== "GRADED").length;
+  const pendingGradingCount =
+    submissions.filter((s) => s.status !== "GRADED").length +
+    simAttempts.filter((sa) => sa.status !== "GRADED").length;
 
   return (
     <DashboardShell user={user}>
@@ -151,10 +153,15 @@ export default async function TeacherDashboardPage({
             title: s.title,
             subtitle: s.subtitle,
             scenarioContext: s.scenarioContext,
+            instructions: s.instructions,
             customerName: s.customerName,
             customerRole: s.customerRole,
             difficulty: s.difficulty,
             estimatedMinutes: s.estimatedMinutes,
+            imageUrl: s.imageUrl,
+            imageName: s.imageName,
+            pdfUrl: s.pdfUrl,
+            pdfName: s.pdfName,
             steps: parseSimulationSteps(s.stepsJson),
             attemptsCount: s._count.attempts,
           }))}
@@ -183,6 +190,7 @@ export default async function TeacherDashboardPage({
             category: q.category,
             timeLimitMinutes: q.timeLimitMinutes,
             passingScore: q.passingScore,
+            shuffleQuestions: q.shuffleQuestions,
             questions: parseQuizQuestions(q.questionsJson),
             attemptsCount: q._count.attempts,
           }))}
@@ -216,8 +224,11 @@ export default async function TeacherDashboardPage({
             studentName: sa.user.name,
             studentClass: sa.user.className,
             simulationTitle: sa.simulation.title,
+            status: sa.status,
             score: sa.score,
             maxScore: sa.maxScore,
+            fileUrl: sa.fileUrl,
+            fileName: sa.fileName,
             reflection: sa.reflection,
             teacherFeedback: sa.teacherFeedback,
             completedAtLabel: formatIndoDate(sa.completedAt),

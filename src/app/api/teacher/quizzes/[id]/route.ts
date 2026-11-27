@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -18,6 +19,7 @@ const updateQuizSchema = z.object({
   category: z.enum(["KONSEP", "ETIKA", "STUDI_KASUS", "EVALUASI"]).optional(),
   timeLimitMinutes: z.number().int().min(3).max(120).optional(),
   passingScore: z.number().int().min(50).max(100).optional(),
+  shuffleQuestions: z.boolean().optional(),
   questions: z.array(questionSchema).min(1).optional(),
 });
 
@@ -48,6 +50,9 @@ export async function PATCH(
     }
 
     const quiz = await prisma.quiz.update({ where: { id }, data: updateData });
+    revalidatePath("/kuis");
+    revalidatePath(`/kuis/${id}`);
+    revalidatePath("/guru");
     return NextResponse.json({ quiz, message: "Kuis berhasil diperbarui." });
   } catch (error) {
     console.error("Update quiz error:", error);

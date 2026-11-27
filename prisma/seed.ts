@@ -3,8 +3,54 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+async function syncTeacherIdentity() {
+  // Pastikan nama guru = "Deby Nuraini" dan email guru = "debynuraini@gmail.com"
+  const existingDeby = await prisma.user.findUnique({
+    where: { email: "debynuraini@gmail.com" },
+    select: { id: true, name: true },
+  });
+
+  if (existingDeby) {
+    if (existingDeby.name !== "Deby Nuraini") {
+      await prisma.user.update({
+        where: { id: existingDeby.id },
+        data: { name: "Deby Nuraini" },
+      });
+    }
+    return existingDeby.id;
+  }
+
+  const legacyTeacher =
+    (await prisma.user.findUnique({
+      where: { email: "guru@officehub.sch.id" },
+      select: { id: true },
+    })) ||
+    (await prisma.user.findFirst({
+      where: { role: "TEACHER" },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    }));
+
+  if (legacyTeacher) {
+    await prisma.user.update({
+      where: { id: legacyTeacher.id },
+      data: {
+        name: "Deby Nuraini",
+        email: "debynuraini@gmail.com",
+      },
+    });
+    console.log("Akun guru diperbarui menjadi Deby Nuraini (debynuraini@gmail.com).");
+    return legacyTeacher.id;
+  }
+
+  return null;
+}
+
 async function main() {
   console.log("Memeriksa status kurikulum Pelayanan Tamu di OFFICE LEARNING HUB...");
+
+  // Selalu sinkronkan identitas akun guru (Deby Nuraini / debynuraini@gmail.com)
+  await syncTeacherIdentity();
 
   // Jika kurikulum baru (Pelayanan Tamu) sudah terpasang, lewati agar editan Guru/Admin & PDF aman
   const hasNewCurriculum = await prisma.material.findUnique({
@@ -23,7 +69,7 @@ async function main() {
 
   const passwordHash = await bcrypt.hash("smkmplb123", 10);
 
-  // 1. Pastikan Akun & Kelas Awal Tersedia (TIDAK menimpa akun yang sudah diubah nama/sandinya!)
+  // 1. Pastikan Akun & Kelas Awal Tersedia
   const admin = await prisma.user.upsert({
     where: { email: "admin@officehub.sch.id" },
     update: {},
@@ -40,11 +86,11 @@ async function main() {
   });
 
   const teacher = await prisma.user.upsert({
-    where: { email: "guru@officehub.sch.id" },
-    update: {},
+    where: { email: "debynuraini@gmail.com" },
+    update: { name: "Deby Nuraini" },
     create: {
-      name: "Ibu Ratna Sari, S.Pd.",
-      email: "guru@officehub.sch.id",
+      name: "Deby Nuraini",
+      email: "debynuraini@gmail.com",
       passwordHash,
       role: "TEACHER",
       identityNo: "198704152012012004",

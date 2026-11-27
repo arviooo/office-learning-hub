@@ -1,23 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Clock, History, MessageSquareText, MonitorPlay } from "lucide-react";
+import { ArrowLeft, Clock, Download, ExternalLink, FileText, MonitorPlay } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/DashboardShell";
-import { SimulationPlayer } from "@/components/SimulationPlayer";
-import { computeMaxScore, parseSimulationSteps } from "@/lib/simulation";
+import { SimulationRoleplayForm } from "@/components/SimulationRoleplayForm";
+import { formatIndoDate } from "@/lib/assessment";
 
 export const dynamic = "force-dynamic";
-
-function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
 
 export default async function SimulationDetailPage({
   params,
@@ -30,20 +20,14 @@ export default async function SimulationDetailPage({
   }
 
   const { slug } = await params;
+  const simulation = await prisma.simulation.findUnique({ where: { slug } });
+  if (!simulation) notFound();
 
-  const simulation = await prisma.simulation.findUnique({
-    where: { slug },
-  });
-
-  if (!simulation) {
-    notFound();
-  }
-
-  const [previousAttempts, nextSimulation] = await Promise.all([
-    prisma.simulationAttempt.findMany({
+  const [totalSimulations, latestAttempt, nextSimulation] = await Promise.all([
+    prisma.simulation.count({ where: { isPublished: true } }),
+    prisma.simulationAttempt.findFirst({
       where: { userId: user.id, simulationId: simulation.id },
       orderBy: { completedAt: "desc" },
-      take: 5,
     }),
     prisma.simulation.findFirst({
       where: { isPublished: true, order: { gt: simulation.order } },
@@ -52,14 +36,11 @@ export default async function SimulationDetailPage({
     }),
   ]);
 
-  const steps = parseSimulationSteps(simulation.stepsJson);
-  const maxScore = computeMaxScore(steps);
-
   return (
     <DashboardShell user={user}>
       <div className="mx-auto max-w-4xl space-y-6">
         {/* Breadcrumb */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="no-print flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/simulasi"
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-[#0f294a]"
@@ -80,7 +61,9 @@ export default async function SimulationDetailPage({
         <header className="space-y-1.5">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-[#0f766e]">
             <MonitorPlay className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Simulasi Pelayanan Digital • Skenario {simulation.order} dari 5</span>
+            <span>
+              Tugas Roleplay PDF • Skenario {simulation.order} dari {totalSimulations}
+            </span>
           </span>
           <h1 className="text-2xl font-extrabold tracking-tight text-[#0f294a] [text-wrap:balance] sm:text-3xl">
             {simulation.title}
@@ -88,9 +71,8 @@ export default async function SimulationDetailPage({
           <p className="text-sm text-slate-600">{simulation.subtitle}</p>
         </header>
 
-        {/* Interactive Player (Siswa) atau Pratinjau Kunci Skenario (Guru/Admin) */}
         {user.role === "STUDENT" ? (
-          <SimulationPlayer
+          <SimulationRoleplayForm
             simulation={{
               id: simulation.id,
               order: simulation.order,
@@ -98,117 +80,119 @@ export default async function SimulationDetailPage({
               title: simulation.title,
               subtitle: simulation.subtitle,
               scenarioContext: simulation.scenarioContext,
+              instructions: simulation.instructions,
+              imageUrl: simulation.imageUrl,
+              imageName: simulation.imageName,
+              pdfUrl: simulation.pdfUrl,
+              pdfName: simulation.pdfName,
               customerName: simulation.customerName,
               customerRole: simulation.customerRole,
               difficulty: simulation.difficulty,
             }}
-            steps={steps}
-            maxScore={maxScore}
+            initialAttempt={
+              latestAttempt
+                ? {
+                    fileUrl: latestAttempt.fileUrl,
+                    fileName: latestAttempt.fileName,
+                    reflection: latestAttempt.reflection,
+                    status: latestAttempt.status,
+                    teacherFeedback: latestAttempt.teacherFeedback,
+                    completedAtLabel: formatIndoDate(latestAttempt.completedAt),
+                  }
+                : null
+            }
             nextSimulation={nextSimulation}
-            userRole={user.role}
           />
         ) : (
           <div className="space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-teal-200 bg-teal-50/70 p-5">
               <div>
                 <p className="text-sm font-extrabold text-[#0f294a]">
-                  Mode Pratinjau Skenario ({user.role === "ADMIN" ? "Admin" : "Guru"})
+                  Mode Pratinjau Skenario Roleplay ({user.role === "ADMIN" ? "Admin" : "Guru"})
                 </p>
                 <p className="mt-0.5 text-xs text-slate-600">
-                  Anda melihat seluruh alur dialog, bobot poin, dan umpan balik sistem. Untuk
-                  mengubah atau menambah skenario, buka Panel Guru.
+                  Kelola gambar ilustrasi, file PDF soal, dan nilai hasil dialog siswa melalui Panel
+                  Guru.
                 </p>
               </div>
-              <Link
-                href="/guru?tab=simulations"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#0f294a] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#163a66]"
-              >
-                <span>Edit Skenario di Panel Guru</span>
-              </Link>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href="/guru?tab=simulations"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#0f294a] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#163a66]"
+                >
+                  <span>Edit Skenario, Gambar &amp; PDF</span>
+                </Link>
+                <Link
+                  href="/guru?tab=grading"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#0f766e] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#0d625c]"
+                >
+                  <span>Nilai PDF Dialog Siswa</span>
+                </Link>
+              </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm">
+            {simulation.imageUrl && (
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-3">
+                <img
+                  src={simulation.imageUrl}
+                  alt={`Ilustrasi ${simulation.title}`}
+                  className="max-h-[380px] w-full rounded-xl object-contain bg-slate-50"
+                />
+              </div>
+            )}
+
+            <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-6 text-sm">
               <p className="font-bold text-[#0f294a]">
                 Tamu: {simulation.customerName} ({simulation.customerRole})
               </p>
-              <p className="mt-1 text-slate-600">{simulation.scenarioContext}</p>
+              <p className="whitespace-pre-line leading-relaxed text-slate-700">
+                {simulation.scenarioContext}
+              </p>
+              {simulation.instructions && (
+                <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 text-xs leading-relaxed text-slate-700">
+                  <strong className="text-[#1d4ed8]">Instruksi Roleplay:</strong>{" "}
+                  {simulation.instructions}
+                </div>
+              )}
             </div>
 
-            {steps.map((step, idx) => (
-              <section key={step.id} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
-                <p className="text-xs font-bold uppercase text-[#1d4ed8]">Langkah {idx + 1}</p>
-                <p className="text-sm font-bold text-slate-900">{step.situation}</p>
-                <p className="rounded-xl bg-slate-900 p-3.5 text-xs text-slate-100">
-                  <strong>{simulation.customerName}:</strong> &ldquo;{step.customerDialog}&rdquo;
-                </p>
-                <p className="text-xs font-semibold text-slate-700">Pertanyaan: {step.prompt}</p>
-                <ul className="space-y-2">
-                  {step.options.map((opt, oIdx) => (
-                    <li key={opt.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs">
-                      <div className="flex flex-wrap items-center justify-between gap-2 font-bold">
-                        <span>
-                          {String.fromCharCode(65 + oIdx)}. {opt.text}
-                        </span>
-                        <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-[#0f294a]">
-                          {opt.rating} (+{opt.score} poin)
-                        </span>
-                      </div>
-                      <p className="mt-1 text-slate-600">Umpan balik: {opt.feedback}</p>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
-        )}
-
-        {/* Riwayat Percobaan Sebelumnya */}
-        {previousAttempts.length > 0 && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
-            <div className="flex items-center gap-2">
-              <History className="h-4 w-4 text-[#1d4ed8]" aria-hidden="true" />
-              <h2 className="text-base font-extrabold text-[#0f294a]">
-                Riwayat Percobaanmu pada Skenario Ini
-              </h2>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              {previousAttempts.map((att, idx) => {
-                const pct = Math.round((att.score / Math.max(1, att.maxScore)) * 100);
-                return (
-                  <div
-                    key={att.id}
-                    className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-xs"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="font-bold text-slate-800">
-                        Percobaan #{previousAttempts.length - idx} •{" "}
-                        <span className="font-normal text-slate-500">
-                          {formatDateTime(att.completedAt)}
-                        </span>
-                      </span>
-                      <span className="rounded-full bg-blue-100 px-2.5 py-0.5 font-extrabold text-[#0f294a]">
-                        Skor {att.score}/{att.maxScore} ({pct}%)
-                      </span>
-                    </div>
-                    {att.reflection && (
-                      <p className="mt-2 text-slate-600">
-                        <strong>Refleksimu:</strong> {att.reflection}
-                      </p>
-                    )}
-                    {att.teacherFeedback && (
-                      <div className="mt-2 flex items-start gap-2 rounded-lg bg-emerald-50 p-2.5 text-emerald-900">
-                        <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
-                        <span>
-                          <strong>Umpan Balik Guru:</strong> {att.teacherFeedback}
-                        </span>
-                      </div>
-                    )}
+            {simulation.pdfUrl && (
+              <section className="rounded-2xl border border-slate-200 bg-white p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-2 text-sm font-bold text-[#0f294a]">
+                    <FileText className="h-4 w-4 text-rose-600" aria-hidden="true" />
+                    <span>PDF Soal: {simulation.pdfName || "Soal-Simulasi.pdf"}</span>
+                  </span>
+                  <div className="flex gap-2">
+                    <a
+                      href={simulation.pdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Buka PDF</span>
+                    </a>
+                    <a
+                      href={simulation.pdfUrl}
+                      download={simulation.pdfName || `${simulation.slug}.pdf`}
+                      className="inline-flex items-center gap-1 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-bold text-white"
+                    >
+                      <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Unduh PDF</span>
+                    </a>
                   </div>
-                );
-              })}
-            </div>
-          </section>
+                </div>
+                <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                  <iframe
+                    src={simulation.pdfUrl}
+                    title={`PDF Soal ${simulation.title}`}
+                    className="h-[460px] w-full"
+                  />
+                </div>
+              </section>
+            )}
+          </div>
         )}
       </div>
     </DashboardShell>

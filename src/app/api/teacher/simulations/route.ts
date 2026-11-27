@@ -1,33 +1,23 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const optionSchema = z.object({
-  id: z.string().min(1),
-  text: z.string().trim().min(3, "Teks pilihan tindakan wajib diisi."),
-  score: z.number().int().min(0).max(100),
-  rating: z.string().trim().min(2),
-  feedback: z.string().trim().min(3, "Umpan balik pilihan wajib diisi."),
-});
-
-const stepSchema = z.object({
-  id: z.string().min(1),
-  situation: z.string().trim().min(5, "Situasi langkah wajib diisi."),
-  customerDialog: z.string().trim().min(3, "Dialog tamu wajib diisi."),
-  prompt: z.string().trim().min(5, "Pertanyaan langkah wajib diisi."),
-  options: z.array(optionSchema).min(2, "Minimal 2 pilihan tindakan per langkah."),
-});
-
 const createSimSchema = z.object({
-  title: z.string().trim().min(3, "Judul simulasi minimal 3 karakter."),
+  title: z.string().trim().min(3, "Judul skenario minimal 3 karakter."),
   subtitle: z.string().trim().min(3, "Subjudul wajib diisi."),
-  scenarioContext: z.string().trim().min(10, "Konteks skenario minimal 10 karakter."),
+  scenarioContext: z.string().trim().min(10, "Teks soal / skenario minimal 10 karakter."),
+  instructions: z.string().trim().optional().nullable(),
+  imageUrl: z.string().trim().optional().nullable(),
+  imageName: z.string().trim().optional().nullable(),
+  pdfUrl: z.string().trim().optional().nullable(),
+  pdfName: z.string().trim().optional().nullable(),
   customerName: z.string().trim().min(2, "Nama tamu wajib diisi."),
   customerRole: z.string().trim().min(2, "Peran/instansi tamu wajib diisi."),
   difficulty: z.enum(["Dasar", "Menengah", "Lanjut"]).default("Dasar"),
-  estimatedMinutes: z.number().int().min(3).max(60).default(10),
-  steps: z.array(stepSchema).min(1, "Simulasi minimal memiliki 1 langkah dialog."),
+  estimatedMinutes: z.number().int().min(3).max(120).default(15),
+  steps: z.array(z.unknown()).optional(),
 });
 
 function slugify(text: string) {
@@ -54,7 +44,7 @@ export async function POST(request: Request) {
     const parsed = createSimSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message || "Data simulasi tidak valid." },
+        { error: parsed.error.issues[0]?.message || "Data skenario tidak valid." },
         { status: 400 }
       );
     }
@@ -72,14 +62,23 @@ export async function POST(request: Request) {
         title: parsed.data.title,
         subtitle: parsed.data.subtitle,
         scenarioContext: parsed.data.scenarioContext,
+        instructions: parsed.data.instructions || null,
+        imageUrl: parsed.data.imageUrl || null,
+        imageName: parsed.data.imageName || null,
+        pdfUrl: parsed.data.pdfUrl || null,
+        pdfName: parsed.data.pdfName || null,
         customerName: parsed.data.customerName,
         customerRole: parsed.data.customerRole,
         difficulty: parsed.data.difficulty,
         estimatedMinutes: parsed.data.estimatedMinutes,
-        stepsJson: JSON.stringify(parsed.data.steps),
+        stepsJson: JSON.stringify(parsed.data.steps || []),
         isPublished: true,
       },
     });
+
+    revalidatePath("/simulasi");
+    revalidatePath("/guru");
+    revalidatePath("/dashboard");
 
     return NextResponse.json(
       { simulation, message: "Skenario simulasi baru berhasil ditambahkan." },

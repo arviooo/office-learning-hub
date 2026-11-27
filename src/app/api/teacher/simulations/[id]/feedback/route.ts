@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const feedbackSchema = z.object({
-  teacherFeedback: z.string().trim().min(3, "Umpan balik minimal 3 karakter.").max(2000),
+const gradeSimSchema = z.object({
+  score: z.number().int().min(0, "Nilai minimal 0.").max(100, "Nilai maksimal 100."),
+  teacherFeedback: z.string().trim().max(2000).optional(),
 });
 
 export async function PATCH(
@@ -19,25 +21,34 @@ export async function PATCH(
   try {
     const { id } = await context.params;
     const body = await request.json();
-    const parsed = feedbackSchema.safeParse(body);
+    const parsed = gradeSimSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message || "Umpan balik tidak valid." },
+        { error: parsed.error.issues[0]?.message || "Data penilaian skenario tidak valid." },
         { status: 400 }
       );
     }
 
     const attempt = await prisma.simulationAttempt.update({
       where: { id },
-      data: { teacherFeedback: parsed.data.teacherFeedback },
+      data: {
+        score: parsed.data.score,
+        maxScore: 100,
+        status: "GRADED",
+        teacherFeedback: parsed.data.teacherFeedback || null,
+      },
     });
+
+    revalidatePath("/guru");
+    revalidatePath("/progres");
+    revalidatePath("/simulasi");
 
     return NextResponse.json({
       attempt,
-      message: "Umpan balik simulasi berhasil dikirim ke siswa.",
+      message: "Nilai & umpan balik skenario berhasil disimpan.",
     });
   } catch (error) {
-    console.error("Simulation feedback error:", error);
-    return NextResponse.json({ error: "Gagal menyimpan umpan balik simulasi." }, { status: 500 });
+    console.error("Simulation grade error:", error);
+    return NextResponse.json({ error: "Gagal menyimpan penilaian skenario." }, { status: 500 });
   }
 }

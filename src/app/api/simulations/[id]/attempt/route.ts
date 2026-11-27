@@ -1,20 +1,13 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { computeMaxScore, parseSimulationSteps } from "@/lib/simulation";
 
-const attemptSchema = z.object({
-  responses: z
-    .array(
-      z.object({
-        stepId: z.string().min(1),
-        choiceId: z.string().min(1),
-        customResponse: z.string().max(1000).optional(),
-      })
-    )
-    .min(1, "Minimal satu langkah harus dijawab."),
-  reflection: z.string().trim().max(2000, "Refleksi maksimal 2000 karakter.").optional(),
+const submitRoleplaySchema = z.object({
+  fileUrl: z.string().trim().min(5, "Unggah file PDF hasil dialog roleplay terlebih dahulu."),
+  fileName: z.string().trim().min(1, "Nama file PDF wajib ada.").max(180),
+  reflection: z.string().trim().max(2000).optional().nullable(),
 });
 
 export async function POST(
@@ -27,7 +20,7 @@ export async function POST(
   }
   if (user.role !== "STUDENT") {
     return NextResponse.json(
-      { error: "Pengerjaan simulasi dan poin XP hanya untuk akun Siswa." },
+      { error: "Pengumpulan tugas simulasi roleplay hanya untuk akun Siswa." },
       { status: 403 }
     );
   }
@@ -35,81 +28,63 @@ export async function POST(
   try {
     const { id: simulationId } = await context.params;
     const body = await request.json();
-    const parsed = attemptSchema.safeParse(body);
+    const parsed = submitRoleplaySchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message || "Data simulasi tidak valid." },
+        { error: parsed.error.issues[0]?.message || "Data pengumpulan simulasi tidak valid." },
         { status: 400 }
       );
     }
 
     const simulation = await prisma.simulation.findUnique({ where: { id: simulationId } });
     if (!simulation) {
-      return NextResponse.json({ error: "Simulasi tidak ditemukan." }, { status: 404 });
+      return NextResponse.json({ error: "Skenario simulasi tidak ditemukan." }, { status: 404 });
     }
 
-    const steps = parseSimulationSteps(simulation.stepsJson);
-    const maxScore = computeMaxScore(steps);
-
-    let totalScore = 0;
-    const evaluatedResponses = steps.map((step) => {
-      const submitted = parsed.data.responses.find((r) => r.stepId === step.id);
-      const chosen = step.options.find((o) => o.id === submitted?.choiceId);
-      const stepScore = chosen ? chosen.score : 0;
-      totalScore += stepScore;
-      return {
-        stepId: step.id,
-        choiceId: chosen?.id ?? null,
-        choiceText: chosen?.text ?? "",
-        rating: chosen?.rating ?? "Tidak Dijawab",
-        score: stepScore,
-        feedback: chosen?.feedback ?? "",
-        customResponse: submitted?.customResponse?.trim() || undefined,
-      };
-    });
-
-    const previousAttempts = await prisma.simulationAttempt.findMany({
+    const existing = await prisma.simulationAttempt.findFirst({
       where: { userId: user.id, simulationId },
-      select: { score: true },
+      orderBy: { completedAt: "desc" },
     });
 
-    const isFirstCompletion = previousAttempts.length === 0;
-    const prevBest = previousAttempts.reduce((m, a) => Math.max(m, a.score), 0);
-    const improvedBest = !isFirstCompletion && totalScore > prevBest;
+    const isFirstSubmit = !existing;
 
-    const attempt = await prisma.simulationAttempt.create({
-      data: {
-        userId: user.id,
-        simulationId,
-        score: totalScore,
-        maxScore,
-        responsesJson: JSON.stringify(evaluatedResponses),
-        reflection: parsed.data.reflection || null,
-      },
-    });
+    const attempt = existing
+      ? await prisma.simulationAttempt.update({
+          where: { id: existing.id },
+          data: {
+            fileUrl: parsed.data.fileUrl,
+            fileName: parsed.data.fileName,
+            reflection: parsed.data.reflection || null,
+            status: existing.status === "GRADED" ? "GRADED" : "SUBMITTED",
+            completedAt: new Date(),
+          },
+        })
+      : await prisma.simulationAttempt.create({
+          data: {
+            userId: user.id,
+            simulationId,
+            score: 0,
+            maxScore: 100,
+            status: "SUBMITTED",
+            fileUrl: parsed.data.fileUrl,
+            fileName: parsed.data.fileName,
+            responsesJson: "[]",
+            reflection: parsed.data.reflection || null,
+          },
+        });
 
     let pointsAwarded = 0;
     const unlockedBadges: string[] = [];
 
-    if (user.role === "STUDENT") {
-      if (isFirstCompletion) {
-        pointsAwarded = 40;
-      } else if (improvedBest) {
-        pointsAwarded = 15;
-      }
+    if (isFirstSubmit) {
+      pointsAwarded = 40;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { points: { increment: pointsAwarded } },
+      });
 
-      if (pointsAwarded > 0) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { points: { increment: pointsAwarded } },
-        });
-      }
-
-      const percent = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
-
-      // Cek badge SIMULATION_ROOKIE (Simulasi 1 skor >= 80%)
-      if (simulation.order === 1 && percent >= 80) {
+      if (simulation.order === 1) {
         const rookieBadge = await prisma.badge.findUnique({
           where: { code: "SIMULATION_ROOKIE" },
         });
@@ -126,7 +101,6 @@ export async function POST(
         }
       }
 
-      // Cek badge EXCELLENCE_CHAMPION (seluruh materi & simulasi selesai)
       const [totalMat, completedMat, totalSim, distinctSimAttempts] = await Promise.all([
         prisma.material.count({ where: { isPublished: true } }),
         prisma.materialProgress.count({ where: { userId: user.id, status: "COMPLETED" } }),
@@ -161,19 +135,34 @@ export async function POST(
       }
     }
 
+    revalidatePath("/simulasi");
+    revalidatePath(`/simulasi/${simulation.slug}`);
+    revalidatePath("/dashboard");
+    revalidatePath("/progres");
+    revalidatePath("/guru");
+    revalidatePath("/sertifikat");
+
     return NextResponse.json(
       {
-        attempt,
-        score: totalScore,
-        maxScore,
-        percent: maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0,
+        attempt: {
+          id: attempt.id,
+          status: attempt.status,
+          fileUrl: attempt.fileUrl,
+          fileName: attempt.fileName,
+        },
         pointsAwarded,
         unlockedBadges,
+        message: isFirstSubmit
+          ? `PDF dialog roleplay berhasil dikumpulkan! +${pointsAwarded} XP ditambahkan.`
+          : "File PDF dialog roleplay berhasil diperbarui.",
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error("Simulation attempt error:", error);
-    return NextResponse.json({ error: "Gagal menyimpan hasil simulasi." }, { status: 500 });
+    console.error("Simulation submission error:", error);
+    return NextResponse.json(
+      { error: "Gagal mengirim hasil dialog roleplay." },
+      { status: 500 }
+    );
   }
 }

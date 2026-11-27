@@ -91,3 +91,39 @@ export async function uploadPdfClient(
 
   throw new Error("Proses upload PDF tidak lengkap. Silakan coba lagi.");
 }
+
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024; // 4 MB
+
+export async function uploadImageClient(
+  file: File,
+  folder = "simulasi"
+): Promise<{ fileUrl: string; fileName: string }> {
+  const validExt = /\.(png|jpe?g|webp)$/i.test(file.name);
+  const validMime = ["image/png", "image/jpeg", "image/webp"].includes(file.type);
+  if (!validExt && !validMime) {
+    throw new Error("Format gambar harus PNG, JPG/JPEG, atau WEBP.");
+  }
+  if (file.size === 0) {
+    throw new Error("File gambar kosong (0 byte).");
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    const mb = (file.size / (1024 * 1024)).toFixed(1);
+    throw new Error(`Ukuran gambar (${mb} MB) melebihi batas maksimal 4 MB.`);
+  }
+
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("kind", "image");
+  fd.append("folder", folder);
+  fd.append("fileName", file.name);
+
+  const res = await fetch("/api/uploads", { method: "POST", body: fd });
+  const data = await parseJsonSafe(res);
+  if (!res.ok) {
+    throw new Error(String(data.error || "Gagal mengunggah gambar."));
+  }
+  return {
+    fileUrl: String(data.fileUrl),
+    fileName: String(data.fileName || file.name),
+  };
+}

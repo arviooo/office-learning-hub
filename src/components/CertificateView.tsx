@@ -125,8 +125,8 @@ export function CertificateView({
             Atas keberhasilannya menyelesaikan seluruh rangkaian pembelajaran ({totalMaterials} Materi
             Inti), kuis evaluasi, dan{" "}
             <strong>{totalSimulations} Skenario Simulasi Pelayanan Digital</strong> pada mata
-            pelajaran <strong>Pelayanan Tamu (Langsung &amp; Telepon)</strong> dengan rata-rata
-            capaian <strong className="text-[#0f766e]">{averageScore || 90}/100</strong>.
+            pelajaran <strong>Pelayanan Tamu (Langsung &amp; Telepon)</strong> dengan penuh
+            dedikasi dan standar profesional perkantoran.
           </p>
 
           <div className="mt-10 grid gap-8 border-t border-slate-200 pt-8 text-xs sm:grid-cols-2">

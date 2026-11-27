@@ -198,3 +198,30 @@ export function formatIndoDate(date: Date | null | undefined): string {
     year: "numeric",
   }).format(date);
 }
+
+/**
+ * Mengacak urutan soal secara deterministik per kombinasi (userId + quizId)
+ * menggunakan hash FNV-1a + Mulberry32 PRNG agar setiap siswa mendapat urutan acak berbeda,
+ * namun tetap konsisten bila siswa memuat ulang halaman sebelum selesai.
+ */
+export function shuffleItemsForStudent<T>(items: T[], seedKey: string): T[] {
+  const arr = [...items];
+  let hash = 2166136261;
+  for (let i = 0; i < seedKey.length; i++) {
+    hash ^= seedKey.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  let state = hash >>> 0;
+  const nextRand = () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(nextRand() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}

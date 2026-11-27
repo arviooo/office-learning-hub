@@ -2,13 +2,38 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// Mendukung file hingga 15 MB melalui chunked upload (masing-masing chunk <= 3 MB agar aman di Vercel Serverless)
-const MAX_TOTAL_PDF_SIZE = 15 * 1024 * 1024;
-const MAX_SINGLE_REQUEST_SIZE = 4 * 1024 * 1024;
+const MAX_TOTAL_PDF_SIZE = 15 * 1024 * 1024; // 15 MB (chunked)
+const MAX_SINGLE_REQUEST_SIZE = 4 * 1024 * 1024; // 4 MB per request (aman di Vercel Serverless)
+const MAX_IMAGE_SIZE = 4 * 1024 * 1024; // 4 MB untuk gambar
 
 function isValidPdfBytes(buffer: Buffer): boolean {
   const headerChunk = buffer.subarray(0, Math.min(4096, buffer.length)).toString("latin1");
   return headerChunk.includes("%PDF");
+}
+
+function detectImageType(buffer: Buffer): { mime: string; ext: string } | null {
+  if (buffer.length < 12) return null;
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47
+  ) {
+    return { mime: "image/png", ext: "png" };
+  }
+  // JPEG: FF D8 FF
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return { mime: "image/jpeg", ext: "jpg" };
+  }
+  // WEBP: RIFF....WEBP
+  if (
+    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+    buffer.subarray(8, 12).toString("ascii") === "WEBP"
+  ) {
+    return { mime: "image/webp", ext: "webp" };
+  }
+  return null;
 }
 
 export async function POST(request: Request) {
@@ -20,6 +45,7 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get("file");
+    const kind = String(formData.get("kind") || "pdf").toLowerCase();
     const folder = String(formData.get("folder") || "documents").replace(/[^a-z0-9_-]/gi, "");
     const safeFolder = folder || "documents";
 
@@ -32,11 +58,57 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "File tidak ditemukan dalam permintaan." }, { status: 400 });
     }
 
-    const totalChunks = totalChunksRaw ? Number(totalChunksRaw) : 1;
-    const chunkIndex = chunkIndexRaw ? Number(chunkIndexRaw) : 0;
     const displayFileName = String(originalFileNameRaw || file.name || "dokumen.pdf").slice(0, 180);
 
-    // ===== MODE CHUNKED UPLOAD (untuk PDF > 3 MB hingga 15 MB di Vercel) =====
+    // ===== MODE UPLOAD GAMBAR (PNG / JPG / WEBP, khusus Guru/Admin untuk Simulasi) =====
+    if (kind === "image") {
+      if (user.role !== "TEACHER" && user.role !== "ADMIN") {
+        return NextResponse.json({ error: "Unggah gambar khusus Guru atau Admin." }, { status: 403 });
+      }
+      if (file.size === 0) {
+        return NextResponse.json({ error: "File gambar kosong (0 byte)." }, { status: 400 });
+      }
+      if (file.size > MAX_IMAGE_SIZE) {
+        return NextResponse.json(
+          { error: "Ukuran gambar maksimal 4 MB. Silakan kompres gambar terlebih dahulu." },
+          { status: 400 }
+        );
+      }
+
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const detected = detectImageType(buffer);
+      if (!detected) {
+        return NextResponse.json(
+          { error: "Format gambar harus PNG, JPG/JPEG, atau WEBP yang valid." },
+          { status: 400 }
+        );
+      }
+
+      const saved = await prisma.uploadedFile.create({
+        data: {
+          folder: safeFolder,
+          fileName: displayFileName,
+          mimeType: detected.mime,
+          size: buffer.length,
+          data: new Uint8Array(buffer),
+        },
+        select: { id: true, fileName: true, size: true },
+      });
+
+      return NextResponse.json(
+        {
+          fileUrl: `/api/uploads/${safeFolder}/${saved.id}.${detected.ext}`,
+          fileName: saved.fileName,
+          size: saved.size,
+        },
+        { status: 201 }
+      );
+    }
+
+    // ===== MODE CHUNKED UPLOAD PDF (3 MB - 15 MB) =====
+    const totalChunks = totalChunksRaw ? Number(totalChunksRaw) : 1;
+    const chunkIndex = chunkIndexRaw ? Number(chunkIndexRaw) : 0;
+
     if (Number.isInteger(totalChunks) && totalChunks > 1) {
       const uploadId = String(uploadIdRaw || "").replace(/[^a-zA-Z0-9_-]/g, "");
       if (!uploadId || uploadId.length < 8) {
@@ -73,12 +145,10 @@ export async function POST(request: Request) {
         create: { uploadId, chunkIndex, data: new Uint8Array(chunkBuf) },
       });
 
-      // Jika belum chunk terakhir, kembalikan status lanjut
       if (chunkIndex < totalChunks - 1) {
         return NextResponse.json({ ok: true, chunkIndex, totalChunks }, { status: 200 });
       }
 
-      // Chunk terakhir: gabungkan seluruh bagian secara berurutan
       const chunks = await prisma.uploadedFileChunk.findMany({
         where: { uploadId },
         orderBy: { chunkIndex: "asc" },
@@ -126,7 +196,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // ===== MODE UPLOAD LANGSUNG (untuk PDF <= 3 MB) =====
+    // ===== MODE UPLOAD LANGSUNG PDF (<= 3 MB) =====
     const isPdf =
       file.type === "application/pdf" || displayFileName.toLowerCase().endsWith(".pdf");
 
@@ -148,9 +218,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
+    const buffer = Buffer.from(await file.arrayBuffer());
     if (!isValidPdfBytes(buffer)) {
       return NextResponse.json(
         { error: "File yang diunggah bukan dokumen PDF yang valid." },
@@ -178,15 +246,9 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Upload PDF error:", error);
-    const detail = error instanceof Error ? error.message : "";
+    console.error("Upload file error:", error);
     return NextResponse.json(
-      {
-        error:
-          detail.includes("UploadedFile") || detail.includes("does not exist")
-            ? "Tabel penyimpanan PDF belum tersinkron di database. Coba redeploy atau jalankan prisma db push."
-            : "Gagal mengunggah file PDF ke server. Pastikan ukuran maksimal 15 MB dan koneksi stabil.",
-      },
+      { error: "Gagal mengunggah file ke server. Periksa format dan koneksi internet Anda." },
       { status: 500 }
     );
   }

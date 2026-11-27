@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -37,40 +38,37 @@ export async function POST(
       return NextResponse.json({ error: "Kuis tidak ditemukan." }, { status: 404 });
     }
 
+    // Batas ketat: setiap siswa hanya boleh mengerjakan kuis 1 kali
+    const existingAttempt = await prisma.quizAttempt.findFirst({
+      where: { userId: user.id, quizId },
+      select: { id: true },
+    });
+    if (existingAttempt) {
+      return NextResponse.json(
+        { error: "Kuis ini hanya dapat dikerjakan 1 kali dan jawabanmu sudah tercatat." },
+        { status: 409 }
+      );
+    }
+
     const questions = parseQuizQuestions(quiz.questionsJson);
     if (questions.length === 0) {
       return NextResponse.json({ error: "Kuis belum memiliki soal." }, { status: 400 });
     }
 
     let correctCount = 0;
-    const review = questions.map((q) => {
+    for (const q of questions) {
       const selectedIndex = parsed.data.answers[q.id];
-      const isCorrect = selectedIndex === q.correctIndex;
-      if (isCorrect) correctCount += 1;
-      return {
-        id: q.id,
-        question: q.question,
-        type: q.type,
-        options: q.options,
-        selectedIndex: selectedIndex ?? null,
-        correctIndex: q.correctIndex,
-        isCorrect,
-        explanation: q.explanation,
-      };
-    });
+      if (selectedIndex === q.correctIndex) {
+        correctCount += 1;
+      }
+    }
 
     const totalQuestions = questions.length;
     const score = Math.round((correctCount / totalQuestions) * 100);
     const passed = score >= quiz.passingScore;
 
-    const prevAttempts = await prisma.quizAttempt.findMany({
-      where: { userId: user.id, quizId },
-      select: { score: true },
-    });
-    const isFirst = prevAttempts.length === 0;
-    const prevBest = prevAttempts.reduce((m, a) => Math.max(m, a.score), 0);
-
-    const attempt = await prisma.quizAttempt.create({
+    // Simpan nilai & detail di database untuk rekap Guru dan Export Excel
+    await prisma.quizAttempt.create({
       data: {
         userId: user.id,
         quizId,
@@ -81,56 +79,48 @@ export async function POST(
       },
     });
 
-    let pointsAwarded = 0;
+    const pointsAwarded = passed ? 35 : 20;
     const unlockedBadges: string[] = [];
 
-    if (user.role === "STUDENT") {
-      if (isFirst) {
-        pointsAwarded = passed ? 35 : 15;
-      } else if (score > prevBest) {
-        pointsAwarded = 15;
-      }
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { points: { increment: pointsAwarded } },
+    });
 
-      if (pointsAwarded > 0) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { points: { increment: pointsAwarded } },
+    if (score === 100) {
+      const badge = await prisma.badge.findUnique({ where: { code: "QUIZ_MASTER" } });
+      if (badge) {
+        const exists = await prisma.userBadge.findUnique({
+          where: { userId_badgeId: { userId: user.id, badgeId: badge.id } },
         });
-      }
-
-      // Badge QUIZ_MASTER jika nilai 100
-      if (score === 100) {
-        const badge = await prisma.badge.findUnique({ where: { code: "QUIZ_MASTER" } });
-        if (badge) {
-          const exists = await prisma.userBadge.findUnique({
-            where: { userId_badgeId: { userId: user.id, badgeId: badge.id } },
+        if (!exists) {
+          await prisma.userBadge.create({
+            data: { userId: user.id, badgeId: badge.id },
           });
-          if (!exists) {
-            await prisma.userBadge.create({
-              data: { userId: user.id, badgeId: badge.id },
-            });
-            unlockedBadges.push(badge.name);
-          }
+          unlockedBadges.push(badge.name);
         }
       }
     }
 
+    revalidatePath("/kuis");
+    revalidatePath(`/kuis/${quizId}`);
+    revalidatePath("/dashboard");
+    revalidatePath("/progres");
+    revalidatePath("/guru");
+
+    // Tidak mengembalikan angka nilai ke sisi siswa (nilai hanya terlihat di Dashboard Guru & Export Excel)
     return NextResponse.json(
       {
-        attempt,
-        score,
-        correctCount,
+        submitted: true,
         totalQuestions,
-        passingScore: quiz.passingScore,
-        passed,
         pointsAwarded,
         unlockedBadges,
-        review,
+        message: "Jawaban kuis berhasil dikirim! Hasil penilaian tercatat untuk Guru.",
       },
       { status: 201 }
     );
   } catch (error) {
     console.error("Quiz attempt error:", error);
-    return NextResponse.json({ error: "Gagal memproses hasil kuis." }, { status: 500 });
+    return NextResponse.json({ error: "Gagal memproses jawaban kuis." }, { status: 500 });
   }
 }

@@ -99,11 +99,16 @@ model Simulation {
   title            String
   subtitle         String
   scenarioContext  String
+  instructions     String?  // Panduan / teks soal tugas dialog roleplay
+  imageUrl         String?  // Gambar ilustrasi skenario yang diunggah guru
+  imageName        String?
+  pdfUrl           String?  // File PDF soal skenario dari guru
+  pdfName          String?
   customerName     String
   customerRole     String
   difficulty       String   @default("Dasar") // Dasar | Menengah | Lanjut
   estimatedMinutes Int      @default(10)
-  stepsJson        String   // JSON array langkah simulasi & feedback
+  stepsJson        String   @default("[]") // Opsional (kompatibilitas data lama)
   isPublished      Boolean  @default(true)
   createdAt        DateTime @default(now())
 
@@ -114,9 +119,12 @@ model SimulationAttempt {
   id              String   @id @default(cuid())
   userId          String
   simulationId    String
-  score           Int
-  maxScore        Int
-  responsesJson   String
+  score           Int      @default(0)
+  maxScore        Int      @default(100)
+  status          String   @default("SUBMITTED") // SUBMITTED | GRADED
+  fileUrl         String?  // File PDF hasil dialog roleplay yang diunggah siswa
+  fileName        String?
+  responsesJson   String   @default("[]")
   reflection      String?
   teacherFeedback String?
   completedAt     DateTime @default(now())
@@ -137,6 +145,7 @@ model Quiz {
   category         String   @default("EVALUASI") // KONSEP | ETIKA | STUDI_KASUS | EVALUASI
   timeLimitMinutes Int      @default(15)
   passingScore     Int      @default(75)
+  shuffleQuestions Boolean  @default(true)
   questionsJson    String   // JSON array soal & pembahasan
   isPublished      Boolean  @default(true)
   createdAt        DateTime @default(now())

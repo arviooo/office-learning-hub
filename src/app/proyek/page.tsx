@@ -72,7 +72,7 @@ export default async function ProjectsListPage() {
                     {sub?.status === "GRADED" ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
                         <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>Nilai: {sub.score}/100</span>
+                        <span>Sudah Diperiksa</span>
                       </span>
                     ) : sub ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-[#1d4ed8]">

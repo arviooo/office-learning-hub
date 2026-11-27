@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -19,6 +20,7 @@ const createQuizSchema = z.object({
   materialId: z.string().optional().nullable(),
   timeLimitMinutes: z.number().int().min(3).max(120).default(15),
   passingScore: z.number().int().min(50).max(100).default(75),
+  shuffleQuestions: z.boolean().default(true),
   questions: z.array(questionSchema).min(1, "Kuis minimal harus memiliki 1 soal."),
 });
 
@@ -46,11 +48,14 @@ export async function POST(request: Request) {
         materialId: parsed.data.materialId || null,
         timeLimitMinutes: parsed.data.timeLimitMinutes,
         passingScore: parsed.data.passingScore,
+        shuffleQuestions: parsed.data.shuffleQuestions,
         questionsJson: JSON.stringify(parsed.data.questions),
         isPublished: true,
       },
     });
 
+    revalidatePath("/kuis");
+    revalidatePath("/guru");
     return NextResponse.json({ quiz, message: "Kuis baru berhasil diterbitkan." }, { status: 201 });
   } catch (error) {
     console.error("Create quiz error:", error);

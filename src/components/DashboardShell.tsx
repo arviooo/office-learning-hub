@@ -68,12 +68,12 @@ function getNavItems(role: string): NavItem[] {
   }
   return [
     { href: "/dashboard", label: "Dashboard Siswa", icon: LayoutDashboard, ready: true },
-    { href: "/materi", label: "Materi Pelayanan Tamu", icon: BookOpen, ready: true },
+    { href: "/materi", label: "Materi", icon: BookOpen, ready: true },
     { href: "/simulasi", label: "Simulasi Digital", icon: MonitorPlay, ready: true },
     { href: "/kuis", label: "Kuis Interaktif", icon: HelpCircle, ready: true },
     { href: "/lkpd", label: "LKPD", icon: ClipboardList, ready: true },
     { href: "/proyek", label: "Proyek Praktik", icon: FolderKanban, ready: true },
-    { href: "/progres", label: "Progres & Nilai", icon: TrendingUp, ready: true },
+    { href: "/progres", label: "Progres Belajar", icon: TrendingUp, ready: true },
     { href: "/diskusi", label: "Diskusi & Info", icon: MessageSquare, ready: true },
     { href: "/sertifikat", label: "Sertifikat", icon: Award, ready: true },
     { href: "/profil", label: "Profil & Sandi", icon: Settings, ready: true },

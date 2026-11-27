@@ -112,15 +112,15 @@ export default async function StudentProgressPage() {
       })),
     ...simulationAttempts.map((s) => ({
       id: `s-${s.id}`,
-      label: `Menyelesaikan ${s.simulation.title}`,
-      detail: `Skor ${s.score}/${s.maxScore} (${Math.round((s.score / Math.max(1, s.maxScore)) * 100)}%)`,
+      label: `Mengumpulkan ${s.simulation.title}`,
+      detail: s.status === "GRADED" ? "Status: Sudah Diperiksa Guru" : "Status: Terkirim (Menunggu Pemeriksaan)",
       date: s.completedAt,
       badge: "Simulasi",
     })),
     ...quizAttempts.map((q) => ({
       id: `q-${q.id}`,
-      label: `Mengerjakan ${q.quiz.title}`,
-      detail: `Nilai ${q.score}/100 (Benar ${q.correctCount}/${q.totalQuestions})`,
+      label: `Menyelesaikan ${q.quiz.title}`,
+      detail: "Status: Jawaban Tercatat (1x Pengerjaan)",
       date: q.completedAt,
       badge: "Kuis",
     })),
@@ -129,8 +129,8 @@ export default async function StudentProgressPage() {
       label: `Mengumpulkan ${sub.assignment.title}`,
       detail:
         sub.status === "GRADED"
-          ? `Sudah Dinilai: ${sub.score}/100`
-          : "Menunggu penilaian guru",
+          ? "Status: Sudah Diperiksa Guru"
+          : "Status: Terkirim (Menunggu Pemeriksaan)",
       date: sub.submittedAt,
       badge: sub.assignment.type,
     })),
@@ -147,10 +147,10 @@ export default async function StudentProgressPage() {
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-teal-200">
                 <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Rekap Pembelajaran &amp; Transkrip Nilai</span>
+                <span>Rekap Progres &amp; Status Pembelajaran</span>
               </span>
               <h1 className="mt-3 text-2xl font-extrabold tracking-tight sm:text-3xl">
-                Progres Belajar &amp; Nilai — {user.name}
+                Progres Belajar — {user.name}
               </h1>
               <p className="mt-1.5 text-sm text-blue-100">
                 {user.className || "XI MPLB 1"} • Level {levelInfo.level} ({levelInfo.title}) •{" "}
@@ -182,7 +182,7 @@ export default async function StudentProgressPage() {
           <div className="flex items-center gap-2">
             <ClipboardCheck className="h-5 w-5 text-[#0f766e]" aria-hidden="true" />
             <h2 className="text-lg font-extrabold text-[#0f294a]">
-              Status Pengumpulan &amp; Nilai LKPD / Proyek
+              Status Pengumpulan LKPD &amp; Proyek
             </h2>
           </div>
 
@@ -192,14 +192,13 @@ export default async function StudentProgressPage() {
             aria-label="Tabel status pengumpulan LKPD dan proyek"
             className="mt-4 overflow-x-auto"
           >
-            <table className="w-full min-w-[640px] text-left text-sm">
+            <table className="w-full min-w-[580px] text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
                   <th scope="col" className="px-4 py-3">Tugas / Proyek</th>
                   <th scope="col" className="px-4 py-3">Jenis</th>
                   <th scope="col" className="px-4 py-3">Status</th>
-                  <th scope="col" className="px-4 py-3">Nilai</th>
-                  <th scope="col" className="px-4 py-3">Umpan Balik Guru</th>
+                  <th scope="col" className="px-4 py-3">Catatan Guru</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -220,20 +219,17 @@ export default async function StudentProgressPage() {
                       <td className="px-4 py-3.5 text-xs">
                         {sub?.status === "GRADED" ? (
                           <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-bold text-emerald-800">
-                            Sudah Dinilai
+                            Sudah Diperiksa
                           </span>
                         ) : sub ? (
                           <span className="rounded-full bg-blue-100 px-2.5 py-1 font-bold text-[#1d4ed8]">
-                            Menunggu Nilai
+                            Terkirim
                           </span>
                         ) : (
                           <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-500">
                             Belum Dikumpulkan
                           </span>
                         )}
-                      </td>
-                      <td className="px-4 py-3.5 font-extrabold text-[#0f294a]">
-                        {sub?.score !== null && sub?.score !== undefined ? `${sub.score}/100` : "—"}
                       </td>
                       <td className="px-4 py-3.5 text-xs text-slate-600">
                         {sub?.teacherFeedback || "Belum ada catatan guru."}
@@ -246,13 +242,12 @@ export default async function StudentProgressPage() {
           </div>
         </section>
 
-        {/* Grid 2 Kolom: Rekap Kuis & Rekap Simulasi */}
+        {/* Grid 2 Kolom: Rekap Kuis & Rekap Simulasi (Tanpa Nilai di Sisi Siswa) */}
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Rekap Nilai Kuis */}
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
             <div className="flex items-center gap-2">
               <HelpCircle className="h-5 w-5 text-indigo-600" aria-hidden="true" />
-              <h2 className="text-base font-extrabold text-[#0f294a]">Riwayat Nilai Kuis</h2>
+              <h2 className="text-base font-extrabold text-[#0f294a]">Status Pengerjaan Kuis</h2>
             </div>
 
             {quizAttempts.length === 0 ? (
@@ -267,17 +262,11 @@ export default async function StudentProgressPage() {
                     <div>
                       <p className="font-bold text-slate-900">{qa.quiz.title}</p>
                       <p className="mt-0.5 text-slate-500">
-                        Benar {qa.correctCount}/{qa.totalQuestions} • {formatIndoDate(qa.completedAt)}
+                        Dikerjakan: {formatIndoDate(qa.completedAt)}
                       </p>
                     </div>
-                    <span
-                      className={`rounded-lg px-2.5 py-1 font-extrabold ${
-                        qa.score >= qa.quiz.passingScore
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-amber-100 text-amber-800"
-                      }`}
-                    >
-                      {qa.score}/100
+                    <span className="rounded-lg bg-emerald-100 px-2.5 py-1 font-extrabold text-emerald-800">
+                      Selesai
                     </span>
                   </li>
                 ))}
@@ -285,48 +274,50 @@ export default async function StudentProgressPage() {
             )}
           </section>
 
-          {/* Rekap Simulasi & Umpan Balik Guru */}
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
             <div className="flex items-center gap-2">
               <MonitorPlay className="h-5 w-5 text-[#0f766e]" aria-hidden="true" />
               <h2 className="text-base font-extrabold text-[#0f294a]">
-                Riwayat Simulasi &amp; Umpan Balik Guru
+                Status Simulasi &amp; Catatan Guru
               </h2>
             </div>
 
             {simulationAttempts.length === 0 ? (
-              <p className="mt-4 text-sm text-slate-500">Belum ada simulasi yang diselesaikan.</p>
+              <p className="mt-4 text-sm text-slate-500">Belum ada tugas simulasi yang dikumpulkan.</p>
             ) : (
               <ul className="mt-4 space-y-3">
-                {simulationAttempts.slice(0, 6).map((sa) => {
-                  const pct = Math.round((sa.score / Math.max(1, sa.maxScore)) * 100);
-                  return (
-                    <li
-                      key={sa.id}
-                      className="rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 text-xs"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <Link
-                          href={`/simulasi/${sa.simulation.slug}`}
-                          className="font-bold text-slate-900 hover:text-[#1d4ed8] hover:underline"
-                        >
-                          {sa.simulation.title}
-                        </Link>
-                        <span className="rounded-lg bg-blue-100 px-2.5 py-0.5 font-extrabold text-[#0f294a]">
-                          {pct}% ({sa.score}/{sa.maxScore})
+                {simulationAttempts.slice(0, 6).map((sa) => (
+                  <li
+                    key={sa.id}
+                    className="rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 text-xs"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <Link
+                        href={`/simulasi/${sa.simulation.slug}`}
+                        className="font-bold text-slate-900 hover:text-[#1d4ed8] hover:underline"
+                      >
+                        {sa.simulation.title}
+                      </Link>
+                      <span
+                        className={`rounded-lg px-2.5 py-0.5 font-extrabold ${
+                          sa.status === "GRADED"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-blue-100 text-[#0f294a]"
+                        }`}
+                      >
+                        {sa.status === "GRADED" ? "Sudah Diperiksa" : "Terkirim"}
+                      </span>
+                    </div>
+                    {sa.teacherFeedback && (
+                      <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-emerald-50 p-2 text-emerald-900">
+                        <MessageSquareText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden="true" />
+                        <span>
+                          <strong>Catatan Guru:</strong> {sa.teacherFeedback}
                         </span>
-                      </div>
-                      {sa.teacherFeedback && (
-                        <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-emerald-50 p-2 text-emerald-900">
-                          <MessageSquareText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden="true" />
-                          <span>
-                            <strong>Umpan Balik Guru:</strong> {sa.teacherFeedback}
-                          </span>
-                        </p>
-                      )}
-                    </li>
-                  );
-                })}
+                      </p>
+                    )}
+                  </li>
+                ))}
               </ul>
             )}
           </section>

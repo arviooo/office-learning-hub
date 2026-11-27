@@ -1,33 +1,23 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-const optionSchema = z.object({
-  id: z.string().min(1),
-  text: z.string().trim().min(3),
-  score: z.number().int().min(0).max(100),
-  rating: z.string().trim().min(2),
-  feedback: z.string().trim().min(3),
-});
-
-const stepSchema = z.object({
-  id: z.string().min(1),
-  situation: z.string().trim().min(5),
-  customerDialog: z.string().trim().min(3),
-  prompt: z.string().trim().min(5),
-  options: z.array(optionSchema).min(2),
-});
 
 const updateSimSchema = z.object({
   title: z.string().trim().min(3).optional(),
   subtitle: z.string().trim().min(3).optional(),
   scenarioContext: z.string().trim().min(10).optional(),
+  instructions: z.string().trim().optional().nullable(),
+  imageUrl: z.string().trim().optional().nullable(),
+  imageName: z.string().trim().optional().nullable(),
+  pdfUrl: z.string().trim().optional().nullable(),
+  pdfName: z.string().trim().optional().nullable(),
   customerName: z.string().trim().min(2).optional(),
   customerRole: z.string().trim().min(2).optional(),
   difficulty: z.enum(["Dasar", "Menengah", "Lanjut"]).optional(),
-  estimatedMinutes: z.number().int().min(3).max(60).optional(),
-  steps: z.array(stepSchema).min(1).optional(),
+  estimatedMinutes: z.number().int().min(3).max(120).optional(),
+  steps: z.array(z.unknown()).optional(),
 });
 
 export async function PATCH(
@@ -45,7 +35,7 @@ export async function PATCH(
     const parsed = updateSimSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message || "Data simulasi tidak valid." },
+        { error: parsed.error.issues[0]?.message || "Data skenario tidak valid." },
         { status: 400 }
       );
     }
@@ -57,6 +47,11 @@ export async function PATCH(
     }
 
     const simulation = await prisma.simulation.update({ where: { id }, data: updateData });
+    revalidatePath("/simulasi");
+    revalidatePath(`/simulasi/${simulation.slug}`);
+    revalidatePath("/guru");
+    revalidatePath("/dashboard");
+
     return NextResponse.json({ simulation, message: "Skenario simulasi berhasil diperbarui." });
   } catch (error) {
     console.error("Update simulation error:", error);
@@ -76,6 +71,9 @@ export async function DELETE(
   try {
     const { id } = await context.params;
     await prisma.simulation.delete({ where: { id } });
+    revalidatePath("/simulasi");
+    revalidatePath("/guru");
+    revalidatePath("/dashboard");
     return NextResponse.json({ message: "Skenario simulasi berhasil dihapus." });
   } catch (error) {
     console.error("Delete simulation error:", error);

@@ -113,16 +113,6 @@ export default async function StudentDashboardPage() {
     materials.find((m) => progressMap.get(m.id) !== "COMPLETED") ||
     materials[0];
 
-  const scoreList: number[] = [
-    ...quizAttempts.map((q) => q.score),
-    ...simulationAttempts.map((s) => Math.round((s.score / Math.max(1, s.maxScore)) * 100)),
-    ...submissions.filter((s) => s.score !== null).map((s) => s.score as number),
-  ];
-  const avgScore =
-    scoreList.length > 0
-      ? Math.round(scoreList.reduce((acc, v) => acc + v, 0) / scoreList.length)
-      : 0;
-
   const levelInfo = getStudentLevel(user.points);
   const pendingQuizzes = quizzes.filter((q) => !completedQuizIds.has(q.id));
   const pendingAssignments = assignments.filter((a) => !submissionMap.has(a.id));
@@ -204,7 +194,7 @@ export default async function StudentDashboardPage() {
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base font-extrabold text-slate-950">Mau belajar apa hari ini?</h2>
             <Link href="/progres" className="text-xs font-bold text-sky-600 hover:underline">
-              Lihat Rapor &amp; Nilai Lengkap →
+              Lihat Progres Belajar Lengkap →
             </Link>
           </div>
 
@@ -218,13 +208,13 @@ export default async function StudentDashboardPage() {
                   <BookOpen className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-extrabold text-sky-800">
-                  {completedMaterialsCount}/{materials.length} Bab
+                  {completedMaterialsCount}/{materials.length} Materi
                 </span>
               </div>
               <div className="mt-4">
                 <h3 className="text-base font-extrabold text-slate-950">Baca Materi</h3>
                 <p className="mt-1 text-xs text-slate-600">
-                  7 bab ringkas, video &amp; handout PDF dari guru.
+                  Materi ringkas, video &amp; handout PDF dari guru.
                 </p>
               </div>
             </Link>
@@ -242,9 +232,9 @@ export default async function StudentDashboardPage() {
                 </span>
               </div>
               <div className="mt-4">
-                <h3 className="text-base font-extrabold text-slate-950">Latihan Simulasi</h3>
+                <h3 className="text-base font-extrabold text-slate-950">Tugas Simulasi</h3>
                 <p className="mt-1 text-xs text-slate-600">
-                  Roleplay melayani tamu kantor dengan skor langsung.
+                  Unduh skenario roleplay &amp; kirim hasil dialog dalam PDF.
                 </p>
               </div>
             </Link>
@@ -258,13 +248,13 @@ export default async function StudentDashboardPage() {
                   <HelpCircle className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-extrabold text-violet-800">
-                  Rata-rata: {avgScore > 0 ? avgScore : "—"}
+                  {completedQuizIds.size}/{quizzes.length} Selesai
                 </span>
               </div>
               <div className="mt-4">
                 <h3 className="text-base font-extrabold text-slate-950">Kerjakan Kuis</h3>
                 <p className="mt-1 text-xs text-slate-600">
-                  Tes pemahaman singkat dengan nilai &amp; pembahasan.
+                  Tes pemahaman singkat (1x kesempatan, soal acak).
                 </p>
               </div>
             </Link>
@@ -325,7 +315,7 @@ export default async function StudentDashboardPage() {
                       <div>
                         <p className="text-sm font-bold text-slate-900">{quiz.title}</p>
                         <p className="text-xs text-slate-500">
-                          Kuis • {quiz.timeLimitMinutes} menit • KKM {quiz.passingScore}
+                          Kuis • {quiz.timeLimitMinutes} menit • 1x kesempatan
                         </p>
                       </div>
                     </div>
