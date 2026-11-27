@@ -221,19 +221,19 @@ export function DashboardShell({
 
   return (
     <div className="min-h-dvh bg-[#fafaf7] lg:flex">
-      {/* Desktop Sidebar */}
-      <aside className="no-print hidden w-72 shrink-0 flex-col border-r border-slate-200/80 bg-white lg:flex">
-        <div className="border-b border-slate-100 px-5 py-4">
+      {/* Desktop Sidebar — Tetap / Fixed di kiri, hanya konten kanan yang scroll */}
+      <aside className="no-print hidden w-72 shrink-0 flex-col border-r border-slate-200/80 bg-white lg:sticky lg:top-0 lg:flex lg:h-dvh lg:overflow-hidden">
+        <div className="shrink-0 border-b border-slate-100 px-5 py-4">
           <Link href="/">
             <BrandLogo />
           </Link>
         </div>
 
-        <nav aria-label="Menu Dashboard" className="flex-1 overflow-y-auto px-4 py-5">
+        <nav aria-label="Menu Dashboard" className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
           {renderNavLinks()}
         </nav>
 
-        <div className="border-t border-slate-100 p-4">
+        <div className="shrink-0 border-t border-slate-100 bg-white p-4">
           {user.role === "STUDENT" && (
             <div className="mb-3 flex items-center justify-between rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2.5 text-white shadow-sm shadow-orange-200">
               <span className="flex items-center gap-2 text-xs font-bold">

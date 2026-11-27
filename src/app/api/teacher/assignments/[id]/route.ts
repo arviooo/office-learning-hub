@@ -3,6 +3,21 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { serializeLkpdCases } from "@/lib/assessment";
+
+const lkpdCaseSchema = z.object({
+  id: z.string().optional(),
+  title: z.string().trim(),
+  description: z.string().trim().default(""),
+  questions: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        text: z.string().trim(),
+      })
+    )
+    .default([]),
+});
 
 const updateAssignmentSchema = z.object({
   type: z.enum(["LKPD", "PROJECT"]).optional(),
@@ -10,6 +25,7 @@ const updateAssignmentSchema = z.object({
   description: z.string().trim().min(5, "Deskripsi wajib diisi.").optional(),
   instructions: z.string().trim().min(5, "Petunjuk pengerjaan wajib diisi.").optional(),
   caseSummary: z.string().trim().optional().nullable(),
+  cases: z.array(lkpdCaseSchema).optional(),
   questions: z.array(z.string().trim()).optional(),
   pdfUrl: z.string().trim().optional().nullable(),
   pdfName: z.string().trim().optional().nullable(),
@@ -38,9 +54,22 @@ export async function PATCH(
       );
     }
 
-    const { questions, dueDate, ...rest } = parsed.data;
+    const { cases, questions, dueDate, ...rest } = parsed.data;
     const updateData: Record<string, unknown> = { ...rest };
-    if (questions !== undefined) {
+    if (cases !== undefined) {
+      updateData.questionsJson = serializeLkpdCases(
+        cases.map((c, cIdx) => ({
+          id: c.id || `case-${cIdx + 1}`,
+          title: c.title,
+          description: c.description,
+          questions: c.questions.map((q, qIdx) => ({
+            id: q.id || `c${cIdx + 1}-q${qIdx + 1}`,
+            text: q.text,
+          })),
+        }))
+      );
+      updateData.caseSummary = null;
+    } else if (questions !== undefined) {
       const clean = questions.filter((q) => q.length > 0);
       updateData.questionsJson = clean.length > 0 ? JSON.stringify(clean) : null;
     }

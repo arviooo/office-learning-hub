@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   AlertCircle,
+  ArrowDown,
+  ArrowUp,
   BookOpen,
   CheckCircle2,
   ClipboardCheck,
@@ -23,7 +25,13 @@ import {
   Users,
   X,
 } from "lucide-react";
-import type { QuizQuestion } from "@/lib/assessment";
+import {
+  flattenLkpdQuestions,
+  parseLkpdCases,
+  type LkpdCase,
+  type LkpdQuestion,
+  type QuizQuestion,
+} from "@/lib/assessment";
 import type { SimulationStep } from "@/lib/simulation";
 import { toEmbedVideoUrl } from "@/lib/video";
 import { uploadPdfClient } from "@/lib/uploadPdf";
@@ -80,6 +88,7 @@ export interface TeacherAssignmentItem {
   description: string;
   instructions: string;
   caseSummary: string | null;
+  cases: LkpdCase[];
   questions: string[];
   pdfUrl: string | null;
   pdfName: string | null;
@@ -175,6 +184,22 @@ function makeEmptyQuizQuestion(index: number): QuizQuestion {
   };
 }
 
+function makeEmptyLkpdQuestion(index: number): LkpdQuestion {
+  return {
+    id: `lq-${Date.now()}-${Math.random().toString(36).slice(2, 6)}-${index}`,
+    text: "",
+  };
+}
+
+function makeEmptyLkpdCase(index: number): LkpdCase {
+  return {
+    id: `lc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}-${index}`,
+    title: `Kasus ${index}. `,
+    description: "",
+    questions: [makeEmptyLkpdQuestion(1)],
+  };
+}
+
 export function TeacherWorkspace({
   initialTab,
   students,
@@ -258,8 +283,7 @@ export function TeacherWorkspace({
   const [asgTitle, setAsgTitle] = useState("");
   const [asgDesc, setAsgDesc] = useState("");
   const [asgInst, setAsgInst] = useState("");
-  const [asgCase, setAsgCase] = useState("");
-  const [asgQuestionsText, setAsgQuestionsText] = useState("");
+  const [asgCases, setAsgCases] = useState<LkpdCase[]>(() => [makeEmptyLkpdCase(1)]);
   const [asgDueDate, setAsgDueDate] = useState("");
   const [asgPdfUrl, setAsgPdfUrl] = useState("");
   const [asgPdfName, setAsgPdfName] = useState("");
@@ -565,8 +589,14 @@ export function TeacherWorkspace({
     setAsgTitle(a.title);
     setAsgDesc(a.description);
     setAsgInst(a.instructions);
-    setAsgCase(a.caseSummary || "");
-    setAsgQuestionsText(a.questions.join("\n"));
+    setAsgCases(
+      a.cases.length > 0
+        ? structuredClone(a.cases).map((c) => ({
+            ...c,
+            questions: c.questions.length > 0 ? c.questions : [makeEmptyLkpdQuestion(1)],
+          }))
+        : [makeEmptyLkpdCase(1)]
+    );
     setAsgDueDate(a.dueDateIso || "");
     setAsgPdfUrl(a.pdfUrl || "");
     setAsgPdfName(a.pdfName || "");
@@ -583,12 +613,35 @@ export function TeacherWorkspace({
     setAsgTitle("");
     setAsgDesc("");
     setAsgInst("");
-    setAsgCase("");
-    setAsgQuestionsText("");
+    setAsgCases([makeEmptyLkpdCase(1)]);
     setAsgDueDate("");
     setAsgPdfUrl("");
     setAsgPdfName("");
     setAsgPdfFeedback(null);
+  }
+
+  function moveLkpdCase(caseIdx: number, direction: -1 | 1) {
+    setAsgCases((prev) => {
+      const target = caseIdx + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = structuredClone(prev);
+      const [moved] = next.splice(caseIdx, 1);
+      next.splice(target, 0, moved);
+      return next;
+    });
+  }
+
+  function moveLkpdQuestion(caseIdx: number, qIdx: number, direction: -1 | 1) {
+    setAsgCases((prev) => {
+      const next = structuredClone(prev);
+      const qs = next[caseIdx]?.questions;
+      if (!qs) return prev;
+      const target = qIdx + direction;
+      if (target < 0 || target >= qs.length) return prev;
+      const [moved] = qs.splice(qIdx, 1);
+      qs.splice(target, 0, moved);
+      return next;
+    });
   }
 
   async function handleSaveAssignment(e: React.FormEvent) {
@@ -597,10 +650,20 @@ export function TeacherWorkspace({
     setSavingAsg(true);
     setBanner(null);
     try {
-      const questions = asgQuestionsText
-        .split("\n")
-        .map((l) => l.trim())
-        .filter(Boolean);
+      const cleanedCases: LkpdCase[] =
+        asgType === "LKPD"
+          ? asgCases
+              .map((c, idx) => ({
+                id: c.id || `case-${idx + 1}`,
+                title: c.title.trim(),
+                description: c.description.trim(),
+                questions: c.questions
+                  .map((q, qIdx) => ({ id: q.id || `c${idx + 1}-q${qIdx + 1}`, text: q.text.trim() }))
+                  .filter((q) => q.text.length > 0),
+              }))
+              .filter((c) => c.title.length > 0 || c.description.length > 0 || c.questions.length > 0)
+          : [];
+
       const url = editingAsgId
         ? `/api/teacher/assignments/${editingAsgId}`
         : "/api/teacher/assignments";
@@ -614,8 +677,7 @@ export function TeacherWorkspace({
           title: asgTitle,
           description: asgDesc,
           instructions: asgInst,
-          caseSummary: asgCase || null,
-          questions,
+          cases: asgType === "LKPD" ? cleanedCases : undefined,
           pdfUrl: asgPdfUrl || null,
           pdfName: asgPdfName || null,
           dueDate: asgDueDate || null,
@@ -624,6 +686,7 @@ export function TeacherWorkspace({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal menyimpan tugas.");
       if (data.assignment) {
+        const parsedCases = parseLkpdCases(data.assignment.questionsJson, data.assignment.caseSummary);
         const saved: TeacherAssignmentItem = {
           id: data.assignment.id,
           type: data.assignment.type,
@@ -631,7 +694,8 @@ export function TeacherWorkspace({
           description: data.assignment.description,
           instructions: data.assignment.instructions,
           caseSummary: data.assignment.caseSummary,
-          questions,
+          cases: parsedCases,
+          questions: flattenLkpdQuestions(parsedCases).map((q) => q.text),
           pdfUrl: data.assignment.pdfUrl,
           pdfName: data.assignment.pdfName,
           dueDateIso: asgDueDate || null,
@@ -1830,7 +1894,11 @@ export function TeacherWorkspace({
                       </Link>
                     </div>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      Tenggat: {a.dueDateLabel} • {a.submissionsCount} pengumpulan siswa
+                      Tenggat: {a.dueDateLabel}
+                      {a.type === "LKPD" && (
+                        <> • {a.cases.length} kasus • {a.questions.length} pertanyaan</>
+                      )}{" "}
+                      • {a.submissionsCount} pengumpulan siswa
                     </p>
                     {a.pdfUrl && (
                       <a
@@ -1992,32 +2060,232 @@ export function TeacherWorkspace({
                 />
               </div>
               {asgType === "LKPD" && (
-                <>
-                  <div className="sm:col-span-2">
-                    <label htmlFor="asg-case" className="block text-xs font-bold text-slate-700">
-                      Ringkasan Kasus Pelayanan (Opsional)
-                    </label>
-                    <textarea
-                      id="asg-case"
-                      rows={2}
-                      value={asgCase}
-                      onChange={(e) => setAsgCase(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-sm"
-                    />
+                <div className="space-y-4 sm:col-span-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-teal-200 bg-teal-50/60 px-4 py-3">
+                    <div>
+                      <p className="text-xs font-extrabold text-[#0f294a]">
+                        Struktur Kasus &amp; Pertanyaan Analisis LKPD
+                      </p>
+                      <p className="text-[11px] text-slate-600">
+                        {asgCases.length} kasus •{" "}
+                        {asgCases.reduce(
+                          (acc, c) =>
+                            acc + c.questions.filter((q) => q.text.trim().length > 0).length,
+                          0
+                        )}{" "}
+                        pertanyaan aktif (judul &amp; deskripsi kasus tidak dihitung sebagai pertanyaan)
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAsgCases((prev) => [...prev, makeEmptyLkpdCase(prev.length + 1)])
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[#0f766e] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#0d625c]"
+                    >
+                      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Tambah Kasus</span>
+                    </button>
                   </div>
-                  <div className="sm:col-span-2">
-                    <label htmlFor="asg-qs" className="block text-xs font-bold text-slate-700">
-                      Daftar Pertanyaan Analisis (1 pertanyaan per baris)
-                    </label>
-                    <textarea
-                      id="asg-qs"
-                      rows={3}
-                      value={asgQuestionsText}
-                      onChange={(e) => setAsgQuestionsText(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-sm"
-                    />
-                  </div>
-                </>
+
+                  {asgCases.map((c, cIdx) => (
+                    <div
+                      key={c.id}
+                      className="space-y-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-2.5">
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#0f294a] px-2.5 py-1 text-xs font-bold text-white">
+                          Kasus #{cIdx + 1}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            disabled={cIdx === 0}
+                            onClick={() => moveLkpdCase(cIdx, -1)}
+                            aria-label={`Pindahkan Kasus ${cIdx + 1} ke atas`}
+                            title="Naikkan urutan kasus"
+                            className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                          >
+                            <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={cIdx === asgCases.length - 1}
+                            onClick={() => moveLkpdCase(cIdx, 1)}
+                            aria-label={`Pindahkan Kasus ${cIdx + 1} ke bawah`}
+                            title="Turunkan urutan kasus"
+                            className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                          >
+                            <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                          {asgCases.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setAsgCases((prev) => prev.filter((_, idx) => idx !== cIdx))
+                              }
+                              className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                              <span>Hapus Kasus</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor={`asg-case-title-${c.id}`}
+                          className="block text-xs font-bold text-slate-700"
+                        >
+                          Judul Kasus
+                        </label>
+                        <input
+                          id={`asg-case-title-${c.id}`}
+                          required
+                          value={c.title}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setAsgCases((prev) =>
+                              prev.map((item, idx) =>
+                                idx === cIdx ? { ...item, title: val } : item
+                              )
+                            );
+                          }}
+                          placeholder={`Contoh: Kasus ${cIdx + 1}. Tamu dengan Janji Temu`}
+                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-900"
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor={`asg-case-desc-${c.id}`}
+                          className="block text-xs font-bold text-slate-700"
+                        >
+                          Deskripsi / Ringkasan Kasus (Tampil sebagai teks bacaan siswa, bukan pertanyaan)
+                        </label>
+                        <textarea
+                          id={`asg-case-desc-${c.id}`}
+                          rows={3}
+                          value={c.description}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setAsgCases((prev) =>
+                              prev.map((item, idx) =>
+                                idx === cIdx ? { ...item, description: val } : item
+                              )
+                            );
+                          }}
+                          placeholder="Tuliskan skenario atau cerita kasus perkantoran untuk dianalisis siswa..."
+                          className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900"
+                        />
+                      </div>
+
+                      {/* Daftar Pertanyaan Milik Kasus Ini */}
+                      <div className="space-y-2.5 pt-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-700">
+                            Daftar Pertanyaan Kasus #{cIdx + 1} ({c.questions.length})
+                          </span>
+                        </div>
+
+                        {c.questions.map((q, qIdx) => (
+                          <div key={q.id} className="flex items-start gap-2">
+                            <span className="mt-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-100 text-xs font-extrabold text-teal-900">
+                              {qIdx + 1}
+                            </span>
+                            <input
+                              aria-label={`Pertanyaan ${qIdx + 1} pada Kasus ${cIdx + 1}`}
+                              value={q.text}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setAsgCases((prev) =>
+                                  prev.map((item, idx) =>
+                                    idx === cIdx
+                                      ? {
+                                          ...item,
+                                          questions: item.questions.map((qItem, qi) =>
+                                            qi === qIdx ? { ...qItem, text: val } : qItem
+                                          ),
+                                        }
+                                      : item
+                                  )
+                                );
+                              }}
+                              placeholder={`Tuliskan pertanyaan nomor ${qIdx + 1}...`}
+                              className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                            />
+                            <div className="flex shrink-0 items-center gap-1 pt-0.5">
+                              <button
+                                type="button"
+                                disabled={qIdx === 0}
+                                onClick={() => moveLkpdQuestion(cIdx, qIdx, -1)}
+                                aria-label={`Naikkan pertanyaan ${qIdx + 1}`}
+                                title="Naikkan urutan pertanyaan"
+                                className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                              >
+                                <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={qIdx === c.questions.length - 1}
+                                onClick={() => moveLkpdQuestion(cIdx, qIdx, 1)}
+                                aria-label={`Turunkan pertanyaan ${qIdx + 1}`}
+                                title="Turunkan urutan pertanyaan"
+                                className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                              >
+                                <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setAsgCases((prev) =>
+                                    prev.map((item, idx) =>
+                                      idx === cIdx
+                                        ? {
+                                            ...item,
+                                            questions: item.questions.filter((_, qi) => qi !== qIdx),
+                                          }
+                                        : item
+                                    )
+                                  )
+                                }
+                                aria-label={`Hapus pertanyaan ${qIdx + 1}`}
+                                title="Hapus pertanyaan"
+                                className="rounded-lg border border-rose-200 bg-white p-1.5 text-rose-600 hover:bg-rose-50"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAsgCases((prev) =>
+                              prev.map((item, idx) =>
+                                idx === cIdx
+                                  ? {
+                                      ...item,
+                                      questions: [
+                                        ...item.questions,
+                                        makeEmptyLkpdQuestion(item.questions.length + 1),
+                                      ],
+                                    }
+                                  : item
+                              )
+                            )
+                          }
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-teal-300 bg-white px-3 py-1.5 text-xs font-bold text-[#0f766e] hover:bg-teal-50"
+                        >
+                          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                          <span>Tambah Pertanyaan</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
               <div className="sm:col-span-2">
                 <span className="block text-xs font-bold text-slate-700">

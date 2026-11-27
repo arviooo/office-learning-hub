@@ -2,7 +2,13 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/DashboardShell";
-import { formatIndoDate, parseQuizQuestions, parseStringArray } from "@/lib/assessment";
+import {
+  flattenLkpdQuestions,
+  formatIndoDate,
+  parseLkpdCases,
+  parseQuizQuestions,
+  parseStringArray,
+} from "@/lib/assessment";
 import { parseSimulationSteps } from "@/lib/simulation";
 import { TeacherWorkspace } from "@/components/TeacherWorkspace";
 
@@ -47,7 +53,7 @@ export default async function TeacherDashboardPage({
       prisma.submission.findMany({
         include: {
           user: { select: { name: true, className: true } },
-          assignment: { select: { title: true, type: true, questionsJson: true } },
+          assignment: { select: { title: true, type: true, questionsJson: true, caseSummary: true } },
         },
         orderBy: { submittedAt: "desc" },
       }),
@@ -152,20 +158,24 @@ export default async function TeacherDashboardPage({
             steps: parseSimulationSteps(s.stepsJson),
             attemptsCount: s._count.attempts,
           }))}
-          assignments={assignments.map((a) => ({
-            id: a.id,
-            type: a.type,
-            title: a.title,
-            description: a.description,
-            instructions: a.instructions,
-            caseSummary: a.caseSummary,
-            questions: parseStringArray(a.questionsJson),
-            pdfUrl: a.pdfUrl,
-            pdfName: a.pdfName,
-            dueDateIso: a.dueDate ? a.dueDate.toISOString().slice(0, 10) : null,
-            dueDateLabel: formatIndoDate(a.dueDate),
-            submissionsCount: a._count.submissions,
-          }))}
+          assignments={assignments.map((a) => {
+            const parsedCases = parseLkpdCases(a.questionsJson, a.caseSummary);
+            return {
+              id: a.id,
+              type: a.type,
+              title: a.title,
+              description: a.description,
+              instructions: a.instructions,
+              caseSummary: a.caseSummary,
+              cases: parsedCases,
+              questions: flattenLkpdQuestions(parsedCases).map((q) => q.text),
+              pdfUrl: a.pdfUrl,
+              pdfName: a.pdfName,
+              dueDateIso: a.dueDate ? a.dueDate.toISOString().slice(0, 10) : null,
+              dueDateLabel: formatIndoDate(a.dueDate),
+              submissionsCount: a._count.submissions,
+            };
+          })}
           quizzes={quizzes.map((q) => ({
             id: q.id,
             title: q.title,
@@ -176,23 +186,31 @@ export default async function TeacherDashboardPage({
             questions: parseQuizQuestions(q.questionsJson),
             attemptsCount: q._count.attempts,
           }))}
-          submissions={submissions.map((s) => ({
-            id: s.id,
-            studentName: s.user.name,
-            studentClass: s.user.className,
-            assignmentTitle: s.assignment.title,
-            assignmentType: s.assignment.type,
-            answers: parseStringArray(s.answersJson),
-            questions: parseStringArray(s.assignment.questionsJson),
-            fileUrl: s.fileUrl,
-            fileName: s.fileName,
-            videoLink: s.videoLink,
-            notes: s.notes,
-            status: s.status,
-            score: s.score,
-            teacherFeedback: s.teacherFeedback,
-            submittedAtLabel: formatIndoDate(s.submittedAt),
-          }))}
+          submissions={submissions.map((s) => {
+            const parsedCases = parseLkpdCases(s.assignment.questionsJson, s.assignment.caseSummary);
+            const flatQs = flattenLkpdQuestions(parsedCases);
+            return {
+              id: s.id,
+              studentName: s.user.name,
+              studentClass: s.user.className,
+              assignmentTitle: s.assignment.title,
+              assignmentType: s.assignment.type,
+              answers: parseStringArray(s.answersJson),
+              questions: flatQs.map((q) =>
+                parsedCases.length > 1
+                  ? `[${q.caseTitle} — No. ${q.questionNumberInCase}] ${q.text}`
+                  : q.text
+              ),
+              fileUrl: s.fileUrl,
+              fileName: s.fileName,
+              videoLink: s.videoLink,
+              notes: s.notes,
+              status: s.status,
+              score: s.score,
+              teacherFeedback: s.teacherFeedback,
+              submittedAtLabel: formatIndoDate(s.submittedAt),
+            };
+          })}
           simAttempts={simAttempts.map((sa) => ({
             id: sa.id,
             studentName: sa.user.name,

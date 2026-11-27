@@ -2,7 +2,7 @@ export function PageLoadingSkeleton() {
   return (
     <div className="min-h-dvh bg-[#fafaf7] lg:flex" aria-busy="true" aria-label="Memuat halaman">
       {/* Sidebar skeleton (desktop) */}
-      <aside className="hidden w-72 shrink-0 flex-col border-r border-slate-200/80 bg-white p-5 lg:flex">
+      <aside className="hidden w-72 shrink-0 flex-col border-r border-slate-200/80 bg-white p-5 lg:sticky lg:top-0 lg:flex lg:h-dvh">
         <div className="h-10 w-44 animate-pulse rounded-xl bg-slate-100" />
         <div className="mt-7 space-y-2.5">
           {Array.from({ length: 6 }).map((_, idx) => (

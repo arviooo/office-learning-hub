@@ -11,7 +11,7 @@ import {
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/DashboardShell";
-import { formatIndoDate, parseStringArray } from "@/lib/assessment";
+import { formatIndoDate, parseLkpdCases, flattenLkpdQuestions } from "@/lib/assessment";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +52,8 @@ export default async function LkpdListPage() {
         <div className="grid gap-5 md:grid-cols-2">
           {lkpds.map((item) => {
             const sub = subMap.get(item.id);
-            const qCount = parseStringArray(item.questionsJson).length;
+            const lkpdCases = parseLkpdCases(item.questionsJson, item.caseSummary);
+            const qCount = flattenLkpdQuestions(lkpdCases).length;
 
             return (
               <article
@@ -68,7 +69,7 @@ export default async function LkpdListPage() {
                 <div>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="rounded-full bg-teal-50 px-2.5 py-1 text-[11px] font-bold text-[#0f766e]">
-                      LKPD
+                      {lkpdCases.length > 0 ? `LKPD • ${lkpdCases.length} Kasus` : "LKPD"}
                     </span>
                     {sub?.status === "GRADED" ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">

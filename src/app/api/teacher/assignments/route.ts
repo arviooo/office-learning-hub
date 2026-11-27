@@ -3,6 +3,21 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { serializeLkpdCases } from "@/lib/assessment";
+
+const lkpdCaseSchema = z.object({
+  id: z.string().optional(),
+  title: z.string().trim(),
+  description: z.string().trim().default(""),
+  questions: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        text: z.string().trim(),
+      })
+    )
+    .default([]),
+});
 
 const createAssignmentSchema = z.object({
   type: z.enum(["LKPD", "PROJECT"]),
@@ -10,6 +25,7 @@ const createAssignmentSchema = z.object({
   description: z.string().trim().min(5, "Deskripsi tugas wajib diisi."),
   instructions: z.string().trim().min(5, "Petunjuk pengerjaan wajib diisi."),
   caseSummary: z.string().trim().optional().nullable(),
+  cases: z.array(lkpdCaseSchema).optional(),
   questions: z.array(z.string().trim()).optional(),
   pdfUrl: z.string().trim().optional().nullable(),
   pdfName: z.string().trim().optional().nullable(),
@@ -33,15 +49,35 @@ export async function POST(request: Request) {
       );
     }
 
-    const cleanQuestions = (parsed.data.questions || []).filter((q) => q.length > 0);
+    let questionsJson: string | null = null;
+    let caseSummary: string | null = parsed.data.caseSummary || null;
+
+    if (parsed.data.type === "LKPD" && parsed.data.cases !== undefined) {
+      questionsJson = serializeLkpdCases(
+        parsed.data.cases.map((c, cIdx) => ({
+          id: c.id || `case-${cIdx + 1}`,
+          title: c.title,
+          description: c.description,
+          questions: c.questions.map((q, qIdx) => ({
+            id: q.id || `c${cIdx + 1}-q${qIdx + 1}`,
+            text: q.text,
+          })),
+        }))
+      );
+      caseSummary = null;
+    } else {
+      const cleanQuestions = (parsed.data.questions || []).filter((q) => q.length > 0);
+      questionsJson = cleanQuestions.length > 0 ? JSON.stringify(cleanQuestions) : null;
+    }
+
     const assignment = await prisma.assignment.create({
       data: {
         type: parsed.data.type,
         title: parsed.data.title,
         description: parsed.data.description,
         instructions: parsed.data.instructions,
-        caseSummary: parsed.data.caseSummary || null,
-        questionsJson: cleanQuestions.length > 0 ? JSON.stringify(cleanQuestions) : null,
+        caseSummary,
+        questionsJson,
         pdfUrl: parsed.data.pdfUrl || null,
         pdfName: parsed.data.pdfName || null,
         dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,

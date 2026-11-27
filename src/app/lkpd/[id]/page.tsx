@@ -13,7 +13,7 @@ import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/DashboardShell";
 import { AssignmentSubmissionForm } from "@/components/AssignmentSubmissionForm";
-import { formatIndoDate, parseStringArray } from "@/lib/assessment";
+import { formatIndoDate, parseLkpdCases, parseStringArray } from "@/lib/assessment";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +35,7 @@ export default async function LkpdDetailPage({
     where: { userId_assignmentId: { userId: user.id, assignmentId: assignment.id } },
   });
 
-  const questions = parseStringArray(assignment.questionsJson);
+  const lkpdCases = parseLkpdCases(assignment.questionsJson, assignment.caseSummary);
 
   return (
     <DashboardShell user={user}>
@@ -86,7 +86,7 @@ export default async function LkpdDetailPage({
             </div>
           </div>
 
-          {/* Petunjuk & Ringkasan Kasus */}
+          {/* Petunjuk Pengerjaan */}
           <div className="mt-5 space-y-4">
             <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-sm text-slate-700">
               <p className="text-xs font-bold uppercase tracking-wider text-[#1d4ed8]">
@@ -94,17 +94,6 @@ export default async function LkpdDetailPage({
               </p>
               <p className="mt-1 leading-relaxed">{assignment.instructions}</p>
             </div>
-
-            {assignment.caseSummary && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-slate-800">
-                <p className="text-xs font-bold uppercase tracking-wider text-amber-800">
-                  Ringkasan Kasus Pelayanan
-                </p>
-                <p className="mt-1.5 leading-relaxed [text-wrap:pretty]">
-                  {assignment.caseSummary}
-                </p>
-              </div>
-            )}
           </div>
         </header>
 
@@ -160,7 +149,7 @@ export default async function LkpdDetailPage({
           <AssignmentSubmissionForm
             assignmentId={assignment.id}
             type="LKPD"
-            questions={questions}
+            cases={lkpdCases}
             initialSubmission={
               submission
                 ? {
@@ -184,8 +173,8 @@ export default async function LkpdDetailPage({
                   Mode Pratinjau LKPD ({user.role === "ADMIN" ? "Admin" : "Guru"})
                 </h2>
                 <p className="mt-0.5 text-xs text-slate-600">
-                  Akun Guru/Admin tidak mengumpulkan LKPD. Gunakan Panel Guru untuk mengedit
-                  pertanyaan, mengunggah PDF LKPD, atau menilai jawaban siswa.
+                  Akun Guru/Admin tidak mengumpulkan LKPD. Gunakan Panel Guru untuk mengedit kasus
+                  &amp; pertanyaan, mengunggah PDF LKPD, atau menilai jawaban siswa.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -203,14 +192,35 @@ export default async function LkpdDetailPage({
                 </Link>
               </div>
             </div>
-            {questions.length > 0 && (
-              <div className="rounded-2xl bg-white p-4 text-sm">
-                <p className="text-xs font-bold uppercase text-slate-500">Daftar Pertanyaan Analisis:</p>
-                <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-slate-800">
-                  {questions.map((q, i) => (
-                    <li key={i}>{q}</li>
-                  ))}
-                </ol>
+            {lkpdCases.length > 0 && (
+              <div className="space-y-4">
+                {lkpdCases.map((c, cIdx) => (
+                  <div key={c.id} className="rounded-2xl border border-slate-200 bg-white p-5 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-base font-extrabold text-[#0f294a]">{c.title}</h3>
+                      <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-[11px] font-bold text-teal-800">
+                        {c.questions.length} Pertanyaan
+                      </span>
+                    </div>
+                    {c.description && (
+                      <p className="mt-2 whitespace-pre-line rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-sm leading-relaxed text-slate-800">
+                        {c.description}
+                      </p>
+                    )}
+                    {c.questions.length > 0 && (
+                      <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-slate-800">
+                        {c.questions.map((q) => (
+                          <li key={q.id}>{q.text}</li>
+                        ))}
+                      </ol>
+                    )}
+                    {c.questions.length === 0 && (
+                      <p className="mt-2 text-xs italic text-slate-400">
+                        Belum ada pertanyaan pada kasus #{cIdx + 1}.
+                      </p>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </section>

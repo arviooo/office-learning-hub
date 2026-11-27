@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { uploadPdfClient } from "@/lib/uploadPdf";
+import { flattenLkpdQuestions, type LkpdCase } from "@/lib/assessment";
 import {
   AlertCircle,
   CheckCircle2,
@@ -17,7 +18,8 @@ import {
 interface AssignmentSubmissionFormProps {
   assignmentId: string;
   type: "LKPD" | "PROJECT";
-  questions: string[];
+  questions?: string[];
+  cases?: LkpdCase[];
   initialSubmission: {
     answers: string[];
     fileUrl: string | null;
@@ -33,13 +35,31 @@ interface AssignmentSubmissionFormProps {
 export function AssignmentSubmissionForm({
   assignmentId,
   type,
-  questions,
+  questions = [],
+  cases = [],
   initialSubmission,
 }: AssignmentSubmissionFormProps) {
   const router = useRouter();
 
+  // Normalisasi: dukung struktur per kasus (baru) maupun questions[] (fallback)
+  const resolvedCases: LkpdCase[] =
+    cases.length > 0
+      ? cases
+      : questions.length > 0
+        ? [
+            {
+              id: "default-case-1",
+              title: "Pertanyaan Analisis",
+              description: "",
+              questions: questions.map((text, idx) => ({ id: `q-${idx + 1}`, text })),
+            },
+          ]
+        : [];
+
+  const flatQuestions = flattenLkpdQuestions(resolvedCases);
+
   const [answers, setAnswers] = useState<string[]>(() =>
-    questions.map((_, i) => initialSubmission?.answers[i] || "")
+    flatQuestions.map((_, i) => initialSubmission?.answers[i] || "")
   );
   const [fileUrl, setFileUrl] = useState<string>(initialSubmission?.fileUrl || "");
   const [fileName, setFileName] = useState<string>(initialSubmission?.fileName || "");
@@ -92,7 +112,7 @@ export function AssignmentSubmissionForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          answers: questions.length > 0 ? answers : undefined,
+          answers: flatQuestions.length > 0 ? answers : undefined,
           fileUrl: fileUrl || null,
           fileName: fileName || null,
           videoLink: videoLink.trim() || null,
@@ -179,32 +199,62 @@ export function AssignmentSubmissionForm({
           </div>
         )}
 
-        {/* Pertanyaan Analisis LKPD */}
-        {questions.length > 0 && (
-          <div className="space-y-4">
-            {questions.map((q, idx) => (
-              <div key={idx}>
-                <label
-                  htmlFor={`lkpd-q-${idx}`}
-                  className="block text-sm font-bold text-slate-800"
+        {/* Kasus & Pertanyaan Analisis LKPD (Terstruktur per Kasus, Nomor 1, 2, 3... per Kasus) */}
+        {resolvedCases.length > 0 && (
+          <div className="space-y-6">
+            {resolvedCases.map((c, caseIdx) => {
+              const caseFlatQuestions = flatQuestions.filter((fq) => fq.caseIndex === caseIdx);
+              return (
+                <section
+                  key={c.id}
+                  className="space-y-4 rounded-2xl border border-slate-200/90 bg-slate-50/40 p-5"
                 >
-                  {idx + 1}. {q}
-                </label>
-                <textarea
-                  id={`lkpd-q-${idx}`}
-                  rows={3}
-                  required={type === "LKPD"}
-                  value={answers[idx] || ""}
-                  onChange={(e) => {
-                    const next = [...answers];
-                    next[idx] = e.target.value;
-                    setAnswers(next);
-                  }}
-                  placeholder="Tuliskan jawaban analisismu secara runtut dan jelas..."
-                  className="mt-1.5 w-full rounded-xl border border-slate-300 bg-slate-50/60 p-3.5 text-sm text-slate-900 focus:border-[#1d4ed8] focus:bg-white focus:outline-none"
-                />
-              </div>
-            ))}
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-base font-extrabold text-[#0f294a]">{c.title}</h3>
+                      {caseFlatQuestions.length > 0 && (
+                        <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-[11px] font-bold text-teal-800">
+                          {caseFlatQuestions.length} Pertanyaan
+                        </span>
+                      )}
+                    </div>
+                    {c.description && (
+                      <div className="whitespace-pre-line rounded-xl border border-amber-200/90 bg-amber-50/75 p-4 text-sm leading-relaxed text-slate-800 [text-wrap:pretty]">
+                        {c.description}
+                      </div>
+                    )}
+                  </div>
+
+                  {caseFlatQuestions.length > 0 && (
+                    <div className="space-y-4 pt-1">
+                      {caseFlatQuestions.map((fq) => (
+                        <div key={fq.id}>
+                          <label
+                            htmlFor={`lkpd-q-${fq.globalIndex}`}
+                            className="block text-sm font-bold text-slate-800"
+                          >
+                            {fq.questionNumberInCase}. {fq.text}
+                          </label>
+                          <textarea
+                            id={`lkpd-q-${fq.globalIndex}`}
+                            rows={3}
+                            required={type === "LKPD"}
+                            value={answers[fq.globalIndex] || ""}
+                            onChange={(e) => {
+                              const next = [...answers];
+                              next[fq.globalIndex] = e.target.value;
+                              setAnswers(next);
+                            }}
+                            placeholder="Tuliskan jawaban analisismu secara runtut dan jelas..."
+                            className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3.5 text-sm text-slate-900 focus:border-[#1d4ed8] focus:outline-none"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              );
+            })}
           </div>
         )}
 
