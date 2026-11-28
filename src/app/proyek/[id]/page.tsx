@@ -55,7 +55,7 @@ export default async function ProjectDetailPage({
         <header className="rounded-3xl border border-slate-200 bg-white p-6 shadow-2xs sm:p-8">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">
             <FolderKanban className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Proyek Praktik • Nilai Maksimal {project.maxScore}</span>
+            <span>Proyek Praktik Pelayanan Tamu</span>
           </span>
           <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-[#0f294a] [text-wrap:balance] sm:text-3xl">
             {project.title}

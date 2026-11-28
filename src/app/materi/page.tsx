@@ -5,6 +5,7 @@ import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/DashboardShell";
 import { MaterialListClient, type MaterialCardItem } from "@/components/MaterialListClient";
+import { formatTitleSummary } from "@/lib/assessment";
 
 export const dynamic = "force-dynamic";
 
@@ -88,9 +89,18 @@ export default async function MaterialsPage() {
                 Materi Pembelajaran Pelayanan Tamu
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-blue-100">
-                Pelajari seluruh materi secara runtut mulai dari Penanganan Tamu Secara Langsung
-                (prinsip 3S, macam tamu, buku &amp; kartu tamu) hingga Penanganan Tamu Melalui
-                Telepon (PABX, etiket, prosedur, LPT, &amp; menelepon keluar).
+                {items.length > 0 ? (
+                  <>
+                    Pelajari <strong>{items.length} modul materi</strong> secara runtut:{" "}
+                    {formatTitleSummary(
+                      items.map((m) => m.title),
+                      4
+                    )}
+                    , lengkap dengan ringkasan, video pembelajaran, dan modul PDF dari guru.
+                  </>
+                ) : (
+                  "Belum ada materi pembelajaran yang diterbitkan guru saat ini."
+                )}
               </p>
             </div>
 

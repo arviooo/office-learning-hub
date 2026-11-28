@@ -12,7 +12,7 @@ import {
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/DashboardShell";
-import { formatIndoDate } from "@/lib/assessment";
+import { formatIndoDate, formatTitleSummary } from "@/lib/assessment";
 
 export const dynamic = "force-dynamic";
 
@@ -44,9 +44,18 @@ export default async function ProjectsListPage() {
             Proyek Praktik Pelayanan Tamu
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-amber-50">
-            Wujudkan keterampilan Materi 1 &amp; Materi 2 dalam karya nyata: menyusun bagian SOP
-            tamu langsung &amp; telepon, video adegan resepsionis/penerima telepon, serta panduan
-            menghadapi tamu mengeluh &amp; penelepon marah.
+            {projects.length > 0 ? (
+              <>
+                Wujudkan keterampilan praktik melalui <strong>{projects.length} proyek aktif</strong>:{" "}
+                {formatTitleSummary(
+                  projects.map((p) => p.title),
+                  3
+                )}
+                . Pelajari panduan dari guru lalu kumpulkan dokumen PDF atau tautan hasil karyamu.
+              </>
+            ) : (
+              "Belum ada proyek praktik yang diterbitkan guru saat ini."
+            )}
           </p>
         </section>
 

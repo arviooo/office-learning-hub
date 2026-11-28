@@ -14,6 +14,7 @@ import {
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/DashboardShell";
+import { formatTitleSummary } from "@/lib/assessment";
 
 export const dynamic = "force-dynamic";
 
@@ -66,8 +67,19 @@ export default async function SimulationsPage() {
                 Simulasi &amp; Skenario Roleplay ({simulations.length} Skenario)
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-blue-100">
-                Buka skenario di bawah, unduh teks soal / PDF dari guru untuk tugas roleplay, susun
-                naskah dialog pelayanan tamu, lalu kirimkan hasilnya dalam bentuk file PDF.
+                {simulations.length > 0 ? (
+                  <>
+                    Tersedia <strong>{simulations.length} skenario roleplay</strong> (
+                    {formatTitleSummary(
+                      simulations.map((s) => s.title),
+                      3
+                    )}
+                    ). Unduh soal atau PDF dari guru, susun naskah dialog pelayanan, lalu unggah
+                    hasilnya dalam format PDF.
+                  </>
+                ) : (
+                  "Belum ada skenario simulasi roleplay yang diterbitkan guru saat ini."
+                )}
               </p>
             </div>
 
@@ -230,9 +242,9 @@ export default async function SimulationsPage() {
                 Panduan Menyusun Dialog Roleplay Pelayanan Tamu
               </h2>
               <p className="mt-1 text-xs leading-relaxed text-amber-900">
-                Pastikan naskah dialog yang kamu buat dan kirim dalam PDF menerapkan prinsip{" "}
-                <strong>3S</strong> (Senyum, Salam, Sapa), tata cara <strong>Buku &amp; Kartu Tamu</strong>,
-                serta <strong>13 langkah prosedur telepon &amp; LPT</strong> secara runtut.
+                Pastikan naskah dialog yang kamu buat dan kirim dalam format <strong>PDF</strong>{" "}
+                mengikuti situasi skenario, panduan tugas dari guru, serta menerapkan etika dan
+                prosedur pelayanan kantor yang telah dipelajari di menu <strong>Materi</strong>.
               </p>
             </div>
           </div>

@@ -4,14 +4,18 @@ import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const questionSchema = z.object({
-  id: z.string().min(1),
-  type: z.enum(["MCQ", "TRUE_FALSE", "CASE"]),
-  question: z.string().trim().min(5, "Teks soal minimal 5 karakter."),
-  options: z.array(z.string().trim().min(1)).min(2, "Minimal 2 pilihan jawaban."),
-  correctIndex: z.number().int().min(0),
-  explanation: z.string().trim().min(3, "Pembahasan soal wajib diisi."),
-});
+const questionSchema = z
+  .object({
+    id: z.string().min(1),
+    type: z.enum(["MCQ", "TRUE_FALSE", "CASE"]),
+    question: z.string().trim().min(5, "Teks soal minimal 5 karakter."),
+    options: z.array(z.string().trim().min(1)).min(2, "Minimal 2 pilihan jawaban."),
+    correctIndex: z.number().int().min(0),
+    explanation: z.string().trim().min(3, "Pembahasan soal wajib diisi."),
+  })
+  .refine((q) => q.correctIndex < q.options.length, {
+    message: "Kunci jawaban harus sesuai dengan pilihan yang tersedia.",
+  });
 
 const updateQuizSchema = z.object({
   title: z.string().trim().min(3).optional(),

@@ -11,7 +11,12 @@ import {
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/DashboardShell";
-import { formatIndoDate, parseLkpdCases, flattenLkpdQuestions } from "@/lib/assessment";
+import {
+  formatIndoDate,
+  formatTitleSummary,
+  parseLkpdCases,
+  flattenLkpdQuestions,
+} from "@/lib/assessment";
 
 export const dynamic = "force-dynamic";
 
@@ -43,9 +48,19 @@ export default async function LkpdListPage() {
             LKPD Studi Kasus Pelayanan Tamu
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-blue-100">
-            Kerjakan LKPD 1 (kasus tiga tamu datang bersamaan + Buku/Kartu Tamu) dan LKPD 2 (kasus
-            tiga panggilan telepon + Lembar Pesan Telepon / LPT), lalu kirimkan jawaban atau PDF
-            hasil kerjamu untuk dinilai guru.
+            {lkpds.length > 0 ? (
+              <>
+                Tersedia <strong>{lkpds.length} lembar kerja aktif</strong>:{" "}
+                {formatTitleSummary(
+                  lkpds.map((item) => item.title),
+                  3
+                )}
+                . Pelajari setiap studi kasus, lengkapi jawaban analisis, atau unggah PDF hasil
+                kerjamu untuk diperiksa guru.
+              </>
+            ) : (
+              "Belum ada LKPD yang diterbitkan guru saat ini."
+            )}
           </p>
         </section>
 

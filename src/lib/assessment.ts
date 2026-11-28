@@ -225,3 +225,20 @@ export function shuffleItemsForStudent<T>(items: T[], seedKey: string): T[] {
   }
   return arr;
 }
+
+/**
+ * Merangkai daftar judul (materi, LKPD, kuis, simulasi, proyek) menjadi kalimat ringkas
+ * agar deskripsi halaman selalu sinkron otomatis ketika guru menambah/mengubah data.
+ */
+export function formatTitleSummary(titles: string[], maxItems = 3): string {
+  const cleaned = titles.map((t) => t.trim()).filter(Boolean);
+  if (cleaned.length === 0) return "";
+  if (cleaned.length === 1) return cleaned[0];
+  if (cleaned.length === 2) return `${cleaned[0]} dan ${cleaned[1]}`;
+  if (cleaned.length <= maxItems) {
+    return `${cleaned.slice(0, -1).join(", ")}, serta ${cleaned[cleaned.length - 1]}`;
+  }
+  const shown = cleaned.slice(0, maxItems);
+  const rest = cleaned.length - maxItems;
+  return `${shown.join(", ")}, serta ${rest} lainnya`;
+}

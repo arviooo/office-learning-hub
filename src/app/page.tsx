@@ -14,54 +14,16 @@ import { LandingNavbar } from "@/components/LandingNavbar";
 import { BrandLogo } from "@/components/BrandLogo";
 import { LandingHubHero } from "@/components/LandingHubHero";
 import { ScrollRevealFallback } from "@/components/ScrollRevealFallback";
+import { formatTitleSummary } from "@/lib/assessment";
 
 export const dynamic = "force-dynamic";
 
-const featureCards = [
-  {
-    code: "01 • MATERI & PDF",
-    title: "Materi Inti Pelayanan Tamu",
-    desc: "Kuasai Penanganan Tamu Secara Langsung (prinsip 3S, resepsionis, buku & kartu tamu) hingga Melalui Telepon (PABX, prosedur, LPT) lengkap dengan video & PDF.",
-    icon: BookOpen,
-    cardClass:
-      "border-sky-200/80 bg-gradient-to-br from-sky-50/80 via-white to-white hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100/70",
-    pillClass: "bg-sky-500 text-white",
-    iconWrapClass: "bg-white text-sky-600 ring-1 ring-sky-100",
-  },
-  {
-    code: "02 • SIMULASI & KUIS",
-    title: "Simulasi Roleplay & Kuis",
-    desc: "Praktikkan berbagai skenario nyata menghadapi tamu langsung & penelepon kantor dengan umpan balik instan, ditambah kuis otomatis & LKPD studi kasus.",
-    icon: MonitorPlay,
-    cardClass:
-      "border-orange-200/80 bg-gradient-to-br from-orange-50/80 via-white to-white hover:border-orange-300 hover:shadow-lg hover:shadow-orange-100/70",
-    pillClass: "bg-[#ff5f3d] text-white",
-    iconWrapClass: "bg-white text-[#ff5f3d] ring-1 ring-orange-100",
-  },
-  {
-    code: "03 • PROYEK & SERTIFIKAT",
-    title: "Proyek Praktik & E-Sertifikat",
-    desc: "Susun SOP, buat video adegan pelayanan, rancang panduan penanganan keluhan, lalu cetak E-Sertifikat kompetensi otomatis saat pembelajaran tuntas.",
-    icon: Award,
-    cardClass:
-      "border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 via-white to-white hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100/70",
-    pillClass: "bg-emerald-500 text-white",
-    iconWrapClass: "bg-white text-emerald-600 ring-1 ring-emerald-100",
-  },
-];
-
 const fallbackTopics = [
-  "Penanganan Tamu Secara Langsung — Resepsionis, Prinsip 3S, Macam Tamu, Tata Cara Penerimaan, Buku & Kartu Tamu, Hambatan, & Dialog",
-  "Penanganan Tamu Melalui Telepon — Telepon Kantor (PABX), Etiket, Prosedur, Kalimat Dianjurkan/Dihindari, Situasi Khusus, LPT, Menelepon Keluar, & Dialog",
+  "Materi inti pelayanan tamu yang terstruktur lengkap dengan ringkasan, video pembelajaran, dan modul PDF",
 ];
 
 const fallbackSimulations = [
-  "Tamu dengan Janji",
-  "Tamu Tanpa Janji & Pimpinan Tidak di Tempat",
-  "Tamu Mengeluh",
-  "Pimpinan Rapat & Mencatat LPT",
-  "Hold atau Transfer Telepon",
-  "Menelepon Keluar",
+  "Skenario roleplay pelayanan tamu perkantoran dengan lembar soal PDF dan pengumpulan dialog",
 ];
 
 export default async function LandingPage() {
@@ -91,6 +53,55 @@ export default async function LandingPage() {
   const simulationList =
     dbSimulations.length > 0 ? dbSimulations.map((s) => s.title) : fallbackSimulations;
 
+  const materialSummaryText =
+    dbMaterials.length > 0
+      ? `Pelajari ${formatTitleSummary(
+          dbMaterials.map((m) => m.title),
+          3
+        )} secara runtut lengkap dengan ringkasan, video pembelajaran, dan handout PDF dari guru.`
+      : "Pelajari seluruh materi pelayanan tamu secara runtut lengkap dengan ringkasan, video pembelajaran, dan handout PDF dari guru.";
+
+  const simulationSummaryText =
+    dbSimulations.length > 0
+      ? `Kerjakan tugas roleplay (${formatTitleSummary(
+          dbSimulations.map((s) => s.title),
+          3
+        )}) dalam format PDF, ditambah kuis interaktif acak soal dan LKPD studi kasus.`
+      : "Praktikkan berbagai skenario roleplay pelayanan tamu dalam format PDF, ditambah kuis interaktif acak soal dan LKPD studi kasus.";
+
+  const featureCards = [
+    {
+      code: "01 • MATERI & PDF",
+      title: "Materi Inti Pelayanan Tamu",
+      desc: materialSummaryText,
+      icon: BookOpen,
+      cardClass:
+        "border-sky-200/80 bg-gradient-to-br from-sky-50/80 via-white to-white hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100/70",
+      pillClass: "bg-sky-500 text-white",
+      iconWrapClass: "bg-white text-sky-600 ring-1 ring-sky-100",
+    },
+    {
+      code: "02 • SIMULASI & KUIS",
+      title: "Simulasi Roleplay & Kuis",
+      desc: simulationSummaryText,
+      icon: MonitorPlay,
+      cardClass:
+        "border-orange-200/80 bg-gradient-to-br from-orange-50/80 via-white to-white hover:border-orange-300 hover:shadow-lg hover:shadow-orange-100/70",
+      pillClass: "bg-[#ff5f3d] text-white",
+      iconWrapClass: "bg-white text-[#ff5f3d] ring-1 ring-orange-100",
+    },
+    {
+      code: "03 • PROYEK & SERTIFIKAT",
+      title: "Proyek Praktik & E-Sertifikat",
+      desc: "Kerjakan LKPD studi kasus dan proyek praktik kerja sesuai arahan guru, lalu cetak E-Sertifikat kompetensi otomatis saat pembelajaran tuntas.",
+      icon: Award,
+      cardClass:
+        "border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 via-white to-white hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100/70",
+      pillClass: "bg-emerald-500 text-white",
+      iconWrapClass: "bg-white text-emerald-600 ring-1 ring-emerald-100",
+    },
+  ];
+
   return (
     <div className="min-h-dvh bg-white text-slate-900">
       <ScrollRevealFallback />
@@ -111,9 +122,9 @@ export default async function LandingPage() {
             </h1>
 
             <p className="mx-auto mt-5 max-w-md text-sm leading-relaxed text-slate-500 [text-wrap:pretty] sm:text-base">
-              Office Learning Hub adalah LMS modern dan santai untuk siswa SMK MPLB — belajar
-              penanganan tamu langsung &amp; melalui telepon, simulasi, LKPD, proyek, hingga
-              E-Sertifikat dalam satu tempat.
+              Office Learning Hub adalah LMS modern dan santai untuk siswa SMK MPLB — belajar materi
+              pelayanan tamu, simulasi roleplay, kuis, LKPD, proyek praktik, hingga E-Sertifikat
+              dalam satu tempat.
             </p>
 
             <div className="mt-8 flex flex-col items-center justify-center gap-3">
@@ -235,7 +246,7 @@ export default async function LandingPage() {
                         Simulasi Pelayanan Tamu Digital
                       </h2>
                       <p className="text-xs text-slate-500">
-                        Roleplay kantor nyata dengan umpan balik langsung
+                        Tugas roleplay kantor nyata dengan lembar soal &amp; pengumpulan dialog PDF
                       </p>
                     </div>
                   </div>

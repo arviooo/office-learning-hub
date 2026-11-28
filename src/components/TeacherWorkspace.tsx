@@ -177,7 +177,7 @@ function makeEmptyQuizQuestion(index: number): QuizQuestion {
     id: `q-${Date.now()}-${index}`,
     type: "MCQ",
     question: "",
-    options: ["", "", "", ""],
+    options: ["", "", "", "", ""],
     correctIndex: 0,
     explanation: "",
   };
@@ -914,15 +914,20 @@ export function TeacherWorkspace({
     setSavingQuiz(true);
     setBanner(null);
     try {
-      const cleanedQuestions = quizQuestions.map((q, idx) => ({
-        ...q,
-        id: q.id || `q-${Date.now()}-${idx + 1}`,
-        type: q.type === "TRUE_FALSE" || q.type === "CASE" ? q.type : "MCQ",
-        options:
+      const cleanedQuestions = quizQuestions.map((q, idx) => {
+        const cleanedOptions =
           q.type === "TRUE_FALSE"
             ? ["Benar", "Salah"]
-            : q.options.map((o) => o.trim()).filter(Boolean),
-      }));
+            : q.options.map((o) => o.trim()).filter(Boolean);
+        return {
+          ...q,
+          id: q.id || `q-${Date.now()}-${idx + 1}`,
+          type: q.type === "TRUE_FALSE" || q.type === "CASE" ? q.type : "MCQ",
+          options: cleanedOptions,
+          correctIndex:
+            q.correctIndex >= 0 && q.correctIndex < cleanedOptions.length ? q.correctIndex : 0,
+        };
+      });
 
       const url = editingQuizId ? `/api/teacher/quizzes/${editingQuizId}` : "/api/teacher/quizzes";
       const method = editingQuizId ? "PATCH" : "POST";
@@ -3038,16 +3043,17 @@ export function TeacherWorkspace({
                           next[qIdx] = {
                             ...next[qIdx],
                             type: t,
-                            options: t === "TRUE_FALSE" ? ["Benar", "Salah"] : ["", "", "", ""],
+                            options:
+                              t === "TRUE_FALSE" ? ["Benar", "Salah"] : ["", "", "", "", ""],
                             correctIndex: 0,
                           };
                           setQuizQuestions(next);
                         }}
                         className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs"
                       >
-                        <option value="MCQ">Pilihan Ganda</option>
+                        <option value="MCQ">Pilihan Ganda (A–E)</option>
                         <option value="TRUE_FALSE">Benar / Salah</option>
-                        <option value="CASE">Studi Kasus</option>
+                        <option value="CASE">Studi Kasus (A–E)</option>
                       </select>
                       {quizQuestions.length > 1 && (
                         <button
@@ -3076,34 +3082,80 @@ export function TeacherWorkspace({
                     className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm"
                   />
 
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {q.options.map((opt, oIdx) => (
-                      <div key={oIdx} className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name={`correct-${q.id}`}
-                          aria-label={`Kunci opsi ${String.fromCharCode(65 + oIdx)}`}
-                          checked={q.correctIndex === oIdx}
-                          onChange={() => {
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold text-slate-500">
+                        Pilihan Jawaban (pilih tombol bulat untuk kunci jawaban benar)
+                      </span>
+                      {q.type !== "TRUE_FALSE" && q.options.length < 6 && (
+                        <button
+                          type="button"
+                          onClick={() => {
                             const next = structuredClone(quizQuestions);
-                            next[qIdx].correctIndex = oIdx;
+                            next[qIdx].options.push("");
                             setQuizQuestions(next);
                           }}
-                        />
-                        <input
-                          required
-                          disabled={q.type === "TRUE_FALSE"}
-                          value={opt}
-                          onChange={(e) => {
-                            const next = structuredClone(quizQuestions);
-                            next[qIdx].options[oIdx] = e.target.value;
-                            setQuizQuestions(next);
-                          }}
-                          placeholder={`Opsi ${String.fromCharCode(65 + oIdx)}`}
-                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs"
-                        />
-                      </div>
-                    ))}
+                          className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-100"
+                        >
+                          <Plus className="h-3 w-3" aria-hidden="true" />
+                          <span>
+                            Tambah Opsi {String.fromCharCode(65 + q.options.length)}
+                          </span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {q.options.map((opt, oIdx) => (
+                        <div key={oIdx} className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name={`correct-${q.id}`}
+                            aria-label={`Kunci opsi ${String.fromCharCode(65 + oIdx)}`}
+                            checked={q.correctIndex === oIdx}
+                            onChange={() => {
+                              const next = structuredClone(quizQuestions);
+                              next[qIdx].correctIndex = oIdx;
+                              setQuizQuestions(next);
+                            }}
+                          />
+                          <span className="w-4 shrink-0 text-center text-xs font-extrabold text-slate-600">
+                            {String.fromCharCode(65 + oIdx)}.
+                          </span>
+                          <input
+                            required
+                            disabled={q.type === "TRUE_FALSE"}
+                            value={opt}
+                            onChange={(e) => {
+                              const next = structuredClone(quizQuestions);
+                              next[qIdx].options[oIdx] = e.target.value;
+                              setQuizQuestions(next);
+                            }}
+                            placeholder={`Opsi ${String.fromCharCode(65 + oIdx)}`}
+                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs"
+                          />
+                          {q.type !== "TRUE_FALSE" && q.options.length > 2 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = structuredClone(quizQuestions);
+                                next[qIdx].options.splice(oIdx, 1);
+                                if (next[qIdx].correctIndex >= next[qIdx].options.length) {
+                                  next[qIdx].correctIndex = 0;
+                                } else if (next[qIdx].correctIndex > oIdx) {
+                                  next[qIdx].correctIndex -= 1;
+                                }
+                                setQuizQuestions(next);
+                              }}
+                              aria-label={`Hapus opsi ${String.fromCharCode(65 + oIdx)}`}
+                              className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                            >
+                              <X className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
                   <input

@@ -4,7 +4,7 @@ import { ArrowRight, CheckCircle2, Clock, HelpCircle, Lock, Shuffle } from "luci
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/DashboardShell";
-import { parseQuizQuestions } from "@/lib/assessment";
+import { formatTitleSummary, parseQuizQuestions } from "@/lib/assessment";
 
 export const dynamic = "force-dynamic";
 
@@ -39,9 +39,19 @@ export default async function QuizzesPage() {
             Kuis Interaktif Pelayanan Tamu
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-blue-100">
-            Uji pemahaman Materi 1 (Penanganan Tamu Secara Langsung) dan Materi 2 (Penanganan Tamu
-            Melalui Telepon). Setiap kuis hanya dapat dikerjakan <strong>1 kali</strong> dengan
-            urutan soal diacak otomatis per siswa.
+            {quizzes.length > 0 ? (
+              <>
+                Uji pemahamanmu melalui <strong>{quizzes.length} kuis aktif</strong>:{" "}
+                {formatTitleSummary(
+                  quizzes.map((q) => q.title),
+                  3
+                )}
+                . Setiap kuis hanya dapat dikerjakan <strong>1 kali</strong> dengan urutan soal
+                diacak otomatis per siswa.
+              </>
+            ) : (
+              "Belum ada kuis interaktif yang diterbitkan guru saat ini."
+            )}
           </p>
         </section>
 

@@ -1010,6 +1010,7 @@ Komponen wajib pada LPT:
             "Senyum, Salam, Sapa",
             "Sopan, Sabar, Setia",
             "Salam, Siaga, Solusi",
+            "Santun, Senyap, Serius",
           ],
           correctIndex: 1,
           explanation:
@@ -1025,6 +1026,7 @@ Komponen wajib pada LPT:
             "Meminta tamu menunggu sampai pimpinan pulang tanpa kepastian",
             "Menyampaikan ketidakhadiran pimpinan secara santun dan menawarkan penitipan pesan/berkas atau penjadwalan ulang",
             "Membiarkan tamu masuk ke ruangan pimpinan yang kosong",
+            "Menyuruh tamu mencari sendiri staf lain di lantai atas",
           ],
           correctIndex: 2,
           explanation:
@@ -1049,6 +1051,7 @@ Komponen wajib pada LPT:
             "Tanggal, jam datang, nama tamu, instansi, pihak dituju, keperluan, nomor kartu tamu, jam keluar, dan tanda tangan",
             "Hanya nama depan dan nomor kendaraan saja",
             "Foto pribadi dan riwayat pendidikan tamu",
+            "Daftar alamat rumah seluruh anggota keluarga tamu",
           ],
           correctIndex: 1,
           explanation:
@@ -1064,6 +1067,7 @@ Komponen wajib pada LPT:
             "Menyuruh tamu diam karena mengganggu tamu lainnya",
             "Tetap tenang, mendengarkan tanpa memotong, meminta maaf tulus, dan segera mengonfirmasi solusi ke bagian terkait",
             "Meninggalkan meja resepsionis untuk menghindari tamu tersebut",
+            "Meminta tamu pulang dan mengajukan keluhan melalui surat saja",
           ],
           correctIndex: 2,
           explanation:
@@ -1097,7 +1101,13 @@ Komponen wajib pada LPT:
           id: "q2-1",
           type: "MCQ",
           question: "Sesuai etiket bertelepon di kantor, gagang telepon masuk sebaiknya diangkat maksimal pada dering ke-...",
-          options: ["Dering ke-1 saja", "Dering ke-3", "Dering ke-5", "Dering ke-7"],
+          options: [
+            "Dering ke-1 saja",
+            "Dering ke-3",
+            "Dering ke-5",
+            "Dering ke-7",
+            "Dering ke-10",
+          ],
           correctIndex: 1,
           explanation:
             "Standar profesional menerima telepon kantor adalah mengangkat maksimal pada dering ke-3 agar penelepon tidak menunggu terlalu lama.",
@@ -1106,7 +1116,7 @@ Komponen wajib pada LPT:
           id: "q2-2",
           type: "MCQ",
           question: "Tombol pada pesawat telepon kantor (PABX) yang berfungsi menahan panggilan sementara saat petugas mengecek informasi adalah...",
-          options: ["Redial", "Transfer", "Hold", "Flash"],
+          options: ["Redial", "Transfer", "Hold", "Flash", "Speaker"],
           correctIndex: 2,
           explanation:
             "Tombol Hold menahan sambungan sementara (biasanya memutar nada tunggu) setelah petugas meminta izin terlebih dahulu kepada penelepon.",
@@ -1120,6 +1130,7 @@ Komponen wajib pada LPT:
             "Ya, kantor di sini, mau bicara sama siapa?",
             "Selamat pagi, PT Nusantara Karya Mandiri, dengan Nadia. Ada yang bisa saya bantu?",
             "Halo, tunggu sebentar ya!",
+            "Ya, ada perlu apa menelepon pagi-pagi?",
           ],
           correctIndex: 2,
           explanation:
@@ -1134,6 +1145,7 @@ Komponen wajib pada LPT:
             "Mencatat pesan telepon masuk secara akurat ketika pihak yang dituju sedang tidak dapat menerima panggilan",
             "Menggantikan buku tamu untuk pengunjung tatap muka",
             "Menghitung tagihan bulanan telepon kantor",
+            "Menyimpan nomor pribadi seluruh karyawan untuk promosi",
           ],
           correctIndex: 1,
           explanation:
@@ -1159,6 +1171,7 @@ Komponen wajib pada LPT:
             "Memeriksa kebenaran nomor tujuan, menyiapkan dokumen pendukung, alat tulis, dan pokok pesan yang akan disampaikan",
             "Menyalakan speakerphone dengan volume maksimal",
             "Menanyakan dulu kepada penelepon siapa namanya sebelum memperkenalkan diri",
+            "Menekan tombol Hold segera setelah nomor tersambung",
           ],
           correctIndex: 1,
           explanation:
